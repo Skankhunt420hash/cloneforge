@@ -19,6 +19,10 @@ var __commonJS = (cb, mod) => function __require() {
     throw mod = 0, e;
   }
 };
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -37,6 +41,10 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 
 // src/templates/embedded.js
+var embedded_exports = {};
+__export(embedded_exports, {
+  EMBEDDED: () => EMBEDDED
+});
 var EMBEDDED;
 var init_embedded = __esm({
   "src/templates/embedded.js"() {
@@ -13127,7 +13135,7 @@ var require_sourcemap_codec_umd = __commonJS({
       var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
       var __getOwnPropNames2 = Object.getOwnPropertyNames;
       var __hasOwnProp2 = Object.prototype.hasOwnProperty;
-      var __export = (target, all) => {
+      var __export2 = (target, all) => {
         for (var name in all)
           __defProp2(target, name, { get: all[name], enumerable: true });
       };
@@ -13141,7 +13149,7 @@ var require_sourcemap_codec_umd = __commonJS({
       };
       var __toCommonJS = (mod) => __copyProps2(__defProp2({}, "__esModule", { value: true }), mod);
       var sourcemap_codec_exports = {};
-      __export(sourcemap_codec_exports, {
+      __export2(sourcemap_codec_exports, {
         decode: () => decode,
         decodeGeneratedRanges: () => decodeGeneratedRanges,
         decodeOriginalScopes: () => decodeOriginalScopes,
@@ -13814,7 +13822,7 @@ var require_trace_mapping_umd = __commonJS({
       var __commonJS2 = (cb, mod) => function __require() {
         return mod || (0, cb[__getOwnPropNames2(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
       };
-      var __export = (target, all) => {
+      var __export2 = (target, all) => {
         for (var name in all)
           __defProp2(target, name, { get: all[name], enumerable: true });
       };
@@ -13846,7 +13854,7 @@ var require_trace_mapping_umd = __commonJS({
         }
       });
       var trace_mapping_exports = {};
-      __export(trace_mapping_exports, {
+      __export2(trace_mapping_exports, {
         AnyMap: () => FlattenMap,
         FlattenMap: () => FlattenMap,
         GREATEST_LOWER_BOUND: () => GREATEST_LOWER_BOUND,
@@ -14354,7 +14362,7 @@ var require_gen_mapping_umd = __commonJS({
       var __commonJS2 = (cb, mod) => function __require() {
         return mod || (0, cb[__getOwnPropNames2(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
       };
-      var __export = (target, all) => {
+      var __export2 = (target, all) => {
         for (var name in all)
           __defProp2(target, name, { get: all[name], enumerable: true });
       };
@@ -14386,7 +14394,7 @@ var require_gen_mapping_umd = __commonJS({
         }
       });
       var gen_mapping_exports = {};
-      __export(gen_mapping_exports, {
+      __export2(gen_mapping_exports, {
         GenMapping: () => GenMapping,
         addMapping: () => addMapping,
         addSegment: () => addSegment,
@@ -24464,18 +24472,18 @@ var Rotator = class {
   // weiß er nichts über das Model, bleiben die Standard-IDs, und ein echter 404 sperrt sie erst beim Aufruf.
   ids(spec) {
     const cat = this.catalog[spec.provider];
-    let list = spec.ids;
+    let list2 = spec.ids;
     if (cat && cat.size) {
       const known = spec.ids.filter((id) => cat.has(id));
       if (known.length) {
-        list = known;
+        list2 = known;
       } else {
         const found = spec.family ? [...cat].filter((id) => spec.family.test(id) && (spec.provider !== "openrouter" || id.endsWith(":free"))).sort(numDesc).slice(0, 2) : [];
-        if (found.length) list = found;
-        else if (PROVIDERS[spec.provider].authoritative) list = [];
+        if (found.length) list2 = found;
+        else if (PROVIDERS[spec.provider].authoritative) list2 = [];
       }
     }
-    return list.filter((id) => !this.dead.has(spec.key + "|" + id));
+    return list2.filter((id) => !this.dead.has(spec.key + "|" + id));
   }
   setCatalog(provider, set) {
     this.catalog[provider] = new Set(set);
@@ -24555,7 +24563,7 @@ var Rotator = class {
       return strat === "best" ? paid ? 0 : av ? 2 : 1 : paid ? 2 : av ? 1 : 0;
     };
     const ordered = base.map((k, i) => ({ k, i })).sort((a, b) => tier(a.k) - tier(b.k) || a.i - b.i).map((x) => x.k);
-    const list = [];
+    const list2 = [];
     const skipped = {};
     for (const k of ordered) {
       const spec = modelByKey(k);
@@ -24564,9 +24572,9 @@ var Rotator = class {
         skipped[k] = why;
         continue;
       }
-      list.push({ spec, ids: this.ids(spec), maxTokens: this.budget(spec, promptTok, wanted) });
+      list2.push({ spec, ids: this.ids(spec), maxTokens: this.budget(spec, promptTok, wanted) });
     }
-    return { strategy: strat, list, skipped };
+    return { strategy: strat, list: list2, skipped };
   }
   explainEmpty(skipped) {
     const s = this.settings();
@@ -24624,14 +24632,14 @@ var Rotator = class {
   }
   async _run({ task = "default", system, user, maxTokens = 4e3, avoid = [], strategy, onEvent } = {}) {
     const promptTok = estTokens(system) + estTokens(user);
-    const { list, skipped, strategy: used } = this.plan({ task, promptTok, wanted: maxTokens, avoid, strategy });
-    if (!list.length) throw new Error(this.explainEmpty(skipped));
+    const { list: list2, skipped, strategy: used } = this.plan({ task, promptTok, wanted: maxTokens, avoid, strategy });
+    if (!list2.length) throw new Error(this.explainEmpty(skipped));
     const s = this.settings();
     const errors = [];
     for (let round = 0; ; round++) {
       let netOnly = true;
       errors.length = 0;
-      for (const c of list) {
+      for (const c of list2) {
         const spec = c.spec;
         const key = this.keyFor(spec.provider, s);
         for (let i = 0; i < c.ids.length; i++) {
@@ -24778,6 +24786,7 @@ COPYRIGHT- UND MARKEN-REGELN (zwingend, haben Vorrang vor allem anderen):
 4. Der Klon darf nie den Eindruck erwecken, die Original-App zu sein oder vom Original-Hersteller zu stammen. Die Original-Marke wird weder im Code noch in UI-Texten noch in Kommentaren erwaehnt.
 5. Clean-Room: nur aus allgemein bekannter FUNKTIONSBESCHREIBUNG arbeiten, nie aus Original-Code oder Original-Assets.
 `;
+var BLOCKED_INPUT = /(phishing|fake[- ]?(login|shop|seite|webseite|website)|passwort.{0,20}(abgreifen|stehlen|klauen)|zugangsdaten.{0,20}(abgreifen|stehlen|klauen)|taeusch|täusch|betrug|scam|(bank|paypal|twint|postfinance|e-?banking).{0,10}(login|anmeld|portal|seite))/i;
 var esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 function brandVariants(appName) {
   if (Array.isArray(appName)) return [...new Set(appName.flatMap(brandVariants))];
@@ -24808,6 +24817,22 @@ function scrubBrand(text2, appName, display, ident = "Clone") {
     const after = str[off + m.length] || "";
     return /[A-Za-z0-9_$]/.test(before) || /[A-Za-z0-9_$]/.test(after) ? ident : display;
   });
+}
+function scrubDeep(value, appName, display = "das Original") {
+  if (typeof value === "string") return scrubBrand(value, appName, display, "Original");
+  if (Array.isArray(value)) return value.map((v) => scrubDeep(v, appName, display));
+  if (value && typeof value === "object") {
+    const o = {};
+    for (const k of Object.keys(value)) o[k] = scrubDeep(value[k], appName, display);
+    return o;
+  }
+  return value;
+}
+var NAMES = ["Forge", "Hub", "Loop", "Nest", "Wave", "Spark"];
+function safeName(name, appName) {
+  let n = String(name || "").replace(/[^A-Za-z0-9À-ſ \-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24);
+  if (n.length < 3 || findBrand(n, appName).length) n = "Nova" + NAMES[Math.floor(Math.random() * NAMES.length)];
+  return n;
 }
 var ALLOWED_PKGS = /* @__PURE__ */ new Set(["react", "react-native", "@react-native-async-storage/async-storage", "expo-status-bar"]);
 function checkFile(path2, content, appName) {
@@ -24840,6 +24865,23 @@ function checkFile(path2, content, appName) {
 }
 
 // src/templates.js
+var VERSIONS = {
+  expo: "~57.0.26",
+  "expo-status-bar": "~57.0.1",
+  react: "19.2.3",
+  "react-dom": "19.2.3",
+  "react-native": "0.86.3",
+  "react-native-web": "~0.21.0",
+  "@expo/metro-runtime": "~57.0.16",
+  "@react-native-async-storage/async-storage": "2.2.0"
+};
+function slugify(name) {
+  let s = String(name || "app").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "");
+  if (!s) s = "app";
+  if (/^[0-9]/.test(s)) s = "a" + s;
+  return s.slice(0, 20);
+}
+var list = (arr) => arr && arr.length ? arr.map((x) => "- " + x).join("\n") : "- (keine Angaben)";
 var GITIGNORE = ["node_modules/", ".expo/", "dist/", "web-dist/", "release/", "out/", "web-build/", "/ios", "/android", ".DS_Store", "*.log", ""].join("\n");
 var INDEX_JS = [
   "import { registerRootComponent } from 'expo';",
@@ -24848,6 +24890,88 @@ var INDEX_JS = [
   "registerRootComponent(App);",
   ""
 ].join("\n");
+function buildScaffold({ name, analysis }) {
+  const slug = slugify(name);
+  const pkg = "app.nemesis." + slug;
+  const packageJson = {
+    name: slug,
+    version: "1.0.0",
+    main: "index.js",
+    private: true,
+    scripts: {
+      start: "expo start",
+      android: "expo start --android",
+      ios: "expo start --ios",
+      web: "expo start --web",
+      "build:web": "expo export --platform web",
+      pack: "node scripts/pack.mjs all"
+    },
+    dependencies: VERSIONS
+  };
+  const appJson = {
+    expo: {
+      name,
+      slug,
+      version: "1.0.0",
+      orientation: "portrait",
+      ios: { supportsTablet: true, bundleIdentifier: pkg },
+      android: { package: pkg },
+      web: { bundler: "metro", output: "single" }
+    }
+  };
+  const readme = [
+    "# " + name,
+    "",
+    "Funktions-Nachbau als Expo / React-Native-App. L\xE4uft aus EINER Codebasis auf Android, iOS und im Web.",
+    "",
+    "## Lokal starten",
+    "```",
+    "npm install",
+    "npx expo start",
+    "```",
+    '`w` dr\xFCcken = Web im Browser. QR-Code mit der App \u201EExpo Go" scannen = Android und iOS.',
+    "",
+    "## Als APK, ZIP und Web-Dateien packen",
+    "**Ohne eigenen Server (GitHub baut es f\xFCr dich):** Repo anlegen, alle Dateien hochladen (Branch `main`). Nach ein paar Minuten liegen unter *Releases* `*-web.zip`, `*.apk` und `*-source.zip`.",
+    "",
+    "**Lokal:** `node scripts/pack.mjs zip` (Quellcode-ZIP), `node scripts/pack.mjs web` (Web-Export + ZIP), `node scripts/pack.mjs apk` (braucht Android SDK + Java 17), `node scripts/pack.mjs all`. Ergebnis im Ordner `release/`.",
+    "",
+    "Das Web-ZIP geh\xF6rt auf einen Webserver (z. B. Netlify Drop, GitHub Pages, eigener Server) in das Hauptverzeichnis. Direkt per Doppelklick \xF6ffnen funktioniert nicht.",
+    "iOS-App-Store und Play-Store brauchen eigene Developer-Konten.",
+    "",
+    "Hinweise zum Nachbau und Copyright: siehe `CLONE-NOTES.md`.",
+    ""
+  ].join("\n");
+  const a = analysis || {};
+  const notes = [
+    "# Klon-Hinweise",
+    "",
+    "Kategorie: " + (a.kategorie || "-"),
+    "",
+    a.zusammenfassung || "",
+    "",
+    "## Nachgebaut (nur Funktionen und Ideen)",
+    list(a.erlaubt_nachzubauen),
+    "",
+    "## Bewusst NICHT \xFCbernommen",
+    list(a.nicht_kopieren),
+    "",
+    "## Rechtliche Hinweise",
+    list(a.rechtliche_hinweise),
+    "",
+    "Arbeitsweise: Clean-Room. Eigener Name, eigenes Design, eigene Texte, Demo-Daten, keine fremden Assets.",
+    "Keine Rechtsberatung: Vor einer Ver\xF6ffentlichung auf Patente, Marken\xE4hnlichkeit und Store-Richtlinien pr\xFCfen.",
+    ""
+  ].join("\n");
+  return [
+    { path: "package.json", content: JSON.stringify(packageJson, null, 2) + "\n" },
+    { path: "app.json", content: JSON.stringify(appJson, null, 2) + "\n" },
+    { path: "index.js", content: INDEX_JS },
+    { path: ".gitignore", content: GITIGNORE },
+    { path: "README.md", content: readme },
+    { path: "CLONE-NOTES.md", content: notes }
+  ];
+}
 
 // src/gen/engine.js
 var DbError = class extends Error {
@@ -25741,6 +25865,9 @@ export function search(text) {
 
 export const samples = { search: () => ['a'] };
 `;
+var fallbackSeed = () => `// Startdaten (leer \u2013 die App ist sofort benutzbar, Eintraege legt man selbst an)
+export const seed = {};
+`;
 function genIndexJs() {
   return `import React from 'react';
 import { registerRootComponent } from 'expo';
@@ -26264,6 +26391,174 @@ UI-KIT  import { Screen, Card, Btn, Field, Toggle, Chip, Badge, Empty, ListItem,
   <Toggle label value onValueChange /> \xB7 <Chip label active onPress /> \xB7 <Badge label color /> \xB7 <Empty text action /> \xB7 <ListItem title subtitle right onPress /> \xB7 <Row> \xB7 <H2> \xB7 <Muted>
   confirmDialog('Frage?', () => ...)   (funktioniert auch im Web)
 THEME  import { theme } from '../theme.js'  \u2192 theme.bg, card, text, muted, border, primary, accent, danger`;
+var ANALYSIS_SYSTEM = (LEGAL_RULES2) => `Du bist Produktanalyst, Software-Architekt und Urheberrechts-Berater. Analysiere die genannte App rein funktional und entwirf einen Bauplan fuer einen eigenstaendigen, voll funktionsfaehigen Nachbau (Frontend + lokales Backend + Datenbank, laeuft offline auf dem Geraet).
+${LEGAL_RULES2}
+Antworte NUR mit JSON in genau dieser Form:
+{
+ "kategorie": "...",
+ "zusammenfassung": "2-3 Saetze was die App macht",
+ "kernfunktionen": ["..."],
+ "bildschirme": ["Name: Zweck"],
+ "nutzerfluesse": ["Hauptablaeufe in kurzen Schritten"],
+ "ui_muster": ["generische UI-Muster, z.B. Tab-Leiste, Karten-Feed"],
+ "erlaubt_nachzubauen": ["freie Funktionen/Ideen"],
+ "nicht_kopieren": ["geschuetzte Elemente dieser App: Name, Logo, Farben, Texte, Trade Dress ..."],
+ "rechtliche_hinweise": ["kurz und konkret"],
+ "vorschlag_name": "originaler, nicht verwechselbarer Name (1-2 Woerter)",
+ "vorschlag_design": "eigene Stilrichtung, bewusst anders als das Original",
+ "palette": {"bg":"#rrggbb","card":"#rrggbb","text":"#rrggbb","muted":"#rrggbb","border":"#rrggbb","primary":"#rrggbb","accent":"#rrggbb","danger":"#rrggbb"},
+ "entitaeten": [
+   {"name":"habits","label":"Gewohnheiten","emoji":"\u2705","felder":[
+      {"name":"title","type":"string","required":true},
+      {"name":"kind","type":"enum","values":["taeglich","woechentlich"],"default":"taeglich"},
+      {"name":"goal","type":"number"},
+      {"name":"categoryId","type":"ref","to":"categories"}]}
+ ],
+ "screens": [
+   {"name":"Habits","title":"Gewohnheiten","emoji":"\u2705","entity":"habits","zweck":"Was der Screen kann (Liste, Anlegen, Filter, Statistik ...)"}
+ ]
+}
+Regeln fuer entitaeten (= Datenbank-Tabellen): 2 bis 6, Namen camelCase im Plural ohne Umlaute. Je 3 bis 10 Felder. Typen: string, number, boolean, date, enum (mit values), ref (mit "to" = Name einer anderen Entitaet), json. KEINE Felder id, createdAt, updatedAt (kommen automatisch). Die Entitaeten muessen ausreichen, damit ALLE Kernfunktionen echt funktionieren (nichts nur vortaeuschen).
+Regeln fuer screens: 2 bis 6, jeder gehoert zu genau einer Entitaet, jede Entitaet braucht mindestens einen Screen. Farben sind bewusst anders als beim Original, gut lesbar (Text auf Hintergrund starker Kontrast).
+Wenn die App unklar ist, nimm die wahrscheinlichste Bedeutung und erwaehne das in der Zusammenfassung. Maximal 6 Eintraege pro Liste.`;
+var schemaText = (bp) => JSON.stringify(bp.schema.collections, null, 1);
+var seedPrompt = (bp, clean) => `Schreibe src/db/seed.js: realistische deutsche Demo-Daten fuer den ersten Start.
+Format (genau so):
+export const seed = {
+  ${bp.entities.map((e) => `${e.name}: [ { id: 'k1', ... } ]`).join(",\n  ")}
+};
+Regeln: 3 bis 6 Eintraege je Sammlung, ALLE Felder passend zum Schema, Pflichtfelder immer gefuellt, enum-Werte NUR aus den erlaubten, jedes Objekt hat eine eigene feste id (kurzer String), ref-Felder zeigen auf die id eines Eintrags der Ziel-Sammlung. Datumsfelder als ISO-String (z.B. '2026-03-14T09:00:00.000Z'). Keine Felder ausserhalb des Schemas. Nur export const seed, keine Imports noetig.
+SCHEMA:
+${schemaText(bp)}`;
+var extrasPrompt = (bp, e, clean) => `Schreibe src/services/${e.extras}.js: die fachliche Backend-Logik fuer die Sammlung "${e.name}" der App "${bp.name}".
+Kernfunktionen der App: ${JSON.stringify(clean.kernfunktionen || [])}
+Regeln:
+- Importiere NUR:  import { db } from '../db/index.js';
+- Exportiere 3 bis 6 sinnvolle, echt funktionierende Funktionen (Suche, Filter, Statistik, Statuswechsel, Berechnungen, Verknuepfungen zu anderen Sammlungen ...). Lesende Funktionen synchron, schreibende async (await db...). Keine Namen list/get/count/create/update/remove (die gibt es schon).
+- Jede Funktion bekommt robuste Standardwerte und wirft bei ungueltigen Eingaben einen verstaendlichen Error.
+- Am Ende ZWINGEND:  export const samples = { funktionsname: db => [beispielArgumente], ... };  fuer JEDE exportierte Funktion eine Zeile, die gueltige Beispiel-Argumente als Array liefert (db = die Datenbank mit Demo-Daten; z.B. echte ids per db.${e.name}.first()).
+SCHEMA:
+${schemaText(bp)}`;
+var screenPrompt = (bp, s) => {
+  const e = bp.entities.find((x) => x.name === s.entity);
+  return `Schreibe ${s.file}: den Bildschirm "${s.title}" (Komponente ${s.name}) fuer die Sammlung "${e.name}".
+Zweck: ${s.purpose || "Verwaltung der Eintraege"}
+Regeln:
+- export default function ${s.name}() ohne Props. Beginnt mit <Screen title="${s.title}">.
+- Daten: useCollection(...) fuer Anzeige; Aenderungen NUR ueber  import * as ${e.service} from '../services/${e.service}.js'  (create/update/remove + Extras-Funktionen). Fuer andere Sammlungen duerfen ihre Services importiert werden: ${bp.entities.filter((x) => x !== e).map((x) => `../services/${x.service}.js`).join(", ") || "(keine)"}.
+- Vollstaendige Funktion: Liste mit Leerzustand (Empty), Anlegen, Bearbeiten, Loeschen (mit confirmDialog), Fehler aus Service-Aufrufen in try/catch als Text anzeigen. Eingaben validieren (Pflichtfelder, Zahlen). Nutze die Extras-Funktionen des Service (Suche, Filter, Statistik) sichtbar in der Oberflaeche.
+- Alle Felder des Schemas der Sammlung muessen bedienbar sein (enum = Chips, ref = Auswahl per Chips aus der Ziel-Sammlung, boolean = Toggle, number = Field mit keyboardType numeric, date = Field mit Format JJJJ-MM-TT).
+- Nur Felder aus dem Schema benutzen. Keine Platzhalter.
+SCHEMA:
+${schemaText(bp)}
+Extras (schon vorhanden, nutzen!): siehe unten im Kontext.`;
+};
+
+// src/repair.js
+var repairable = (bp, path2) => {
+  if (path2 === "src/db/seed.js") return { kind: "seed" };
+  const e = bp.entities.find((x) => path2 === `src/services/${x.extras}.js`);
+  if (e) return { kind: "extras", e };
+  const s = bp.screens.find((x) => x.file === path2);
+  if (s) return { kind: "screen", s, e: bp.entities.find((x) => x.name === s.entity) };
+  return null;
+};
+function fallbackFor(bp, path2) {
+  const r = repairable(bp, path2);
+  if (!r) return null;
+  if (r.kind === "seed") return fallbackSeed();
+  if (r.kind === "extras") return fallbackExtras(r.e);
+  return genGenericScreen(bp, r.s);
+}
+function promptFor(bp, clean, r, files) {
+  const get = (p) => (files.find((f) => f.path === p) || {}).content || "";
+  if (r.kind === "seed") return { prompt: seedPrompt(bp, clean), context: "", maxTokens: 6e3 };
+  if (r.kind === "extras") return { prompt: extrasPrompt(bp, r.e, clean), context: "", maxTokens: 6e3 };
+  return {
+    prompt: screenPrompt(bp, r.s),
+    context: `--- src/services/${r.e.extras}.js ---
+${get(`src/services/${r.e.extras}.js`).slice(0, 6e3)}
+
+--- src/db/schema.js ---
+${JSON.stringify(bp.schema.collections)}`,
+    maxTokens: 9e3
+  };
+}
+var errorsByFile = (res) => {
+  const m = /* @__PURE__ */ new Map();
+  for (const i of res.issues) if (i.severity === "error") {
+    if (!m.has(i.file)) m.set(i.file, []);
+    m.get(i.file).push(i);
+  }
+  return m;
+};
+async function auditAndRepair(rotator, tally, project, { app, concept, clean, onProgress = () => {
+}, onEvent = () => {
+}, maxRounds = 2 } = {}) {
+  const bp = project.blueprint;
+  const files = project.files;
+  const log2 = { rounds: 0, rewritten: [], fallbacks: [], unresolved: [] };
+  const setFile = (path2, content) => {
+    const f = files.find((x) => x.path === path2);
+    if (f) f.content = content;
+    else files.push({ path: path2, content });
+  };
+  let res = await verifyProject(files, bp, { app });
+  for (let round = 1; round <= maxRounds && !res.ok; round++) {
+    log2.rounds = round;
+    const byFile = errorsByFile(res);
+    for (const [path2, errs] of byFile) {
+      const r = repairable(bp, path2);
+      if (!r) continue;
+      onProgress({ label: `Repariere ${path2} (Runde ${round}) \u2026` });
+      const cur = (files.find((f) => f.path === path2) || {}).content || "";
+      const { prompt, context, maxTokens } = promptFor(bp, clean, r, files);
+      try {
+        const out = await writeFile(rotator, tally, onEvent, { concept }, {
+          path: path2,
+          prompt,
+          context,
+          maxTokens,
+          task: "fix",
+          avoid: project.models && project.models[path2] ? [project.models[path2]] : [],
+          extra: `
+
+KORREKTUR (Pruefbericht): Die aktuelle Version hat diese Fehler:
+- ${errs.map((e) => e.message).join("\n- ")}
+AKTUELLE VERSION:
+${cur.slice(0, 8e3)}
+
+Schreibe die Datei komplett neu und behebe ALLE Fehler.`
+        });
+        let content = scrubBrand(out.content, app, bp.name, "Clone");
+        if (!checkFile(path2, content, app).some((i) => /leer|kein export|Netzwerk|Nicht erlaubtes Paket/.test(i))) {
+          setFile(path2, content);
+          if (project.models) project.models[path2] = out.model;
+          log2.rewritten.push(path2);
+        }
+      } catch (e) {
+        if (/Kein Model verfügbar|Alle Models fehlgeschlagen/.test(e.message)) break;
+      }
+    }
+    res = await verifyProject(files, bp, { app });
+  }
+  for (let pass = 0; pass < 3 && !res.ok; pass++) {
+    let changed = false;
+    for (const [path2] of errorsByFile(res)) {
+      const fb = fallbackFor(bp, path2);
+      if (fb == null) continue;
+      const cur = (files.find((f) => f.path === path2) || {}).content;
+      if (cur === fb) continue;
+      setFile(path2, fb);
+      log2.fallbacks.push(path2);
+      changed = true;
+    }
+    if (!changed) break;
+    res = await verifyProject(files, bp, { app });
+  }
+  log2.unresolved = res.issues.filter((i) => i.severity === "error").map((i) => `${i.file}: ${i.message}`);
+  return { ...res, repair: log2 };
+}
 
 // src/pipeline.js
 function extractJSON(t) {
@@ -26276,6 +26571,13 @@ function extractJSON(t) {
     throw new Error("Das Model hat kaputtes JSON geliefert.");
   }
 }
+function stripFences(t) {
+  const s = String(t).trim();
+  const blocks = [...s.matchAll(/```[a-zA-Z]*\r?\n([\s\S]*?)```/g)];
+  if (blocks.length) return blocks.sort((x, y) => y[1].length - x[1].length)[0][1].trim();
+  return s.replace(/^```[a-zA-Z]*\r?\n?/, "").replace(/```\s*$/, "").trim();
+}
+var toArr = (v) => Array.isArray(v) ? v.map(String).slice(0, 8) : v ? [String(v)] : [];
 function makeTally() {
   return { calls: 0, free: 0, paid: 0, byModel: {} };
 }
@@ -26299,6 +26601,243 @@ async function askJSON(rotator, tally, onEvent, opts) {
       throw new Error("Kein Model hat g\xFCltiges JSON geliefert. Bitte nochmal versuchen oder unter \u2699\uFE0F eine andere Strategie w\xE4hlen.");
     }
   }
+}
+function checkName(app) {
+  const name = String(app || "").trim();
+  if (!name) throw new Error("Bitte einen App-Namen eingeben.");
+  if (name.length > 100) throw new Error("Name ist zu lang (max. 100 Zeichen).");
+  if (BLOCKED_INPUT.test(name))
+    throw new Error('Geblockt: Nachbauten, die t\xE4uschen oder Zugangsdaten abgreifen k\xF6nnten, baue ich nicht. Nimm stattdessen die Funktion (z.B. \u201ELogin-System") als Ziel.');
+  return name;
+}
+function parseAnalysis(a, brands) {
+  const analysis = {
+    kategorie: String(a.kategorie || "App"),
+    zusammenfassung: String(a.zusammenfassung || ""),
+    kernfunktionen: toArr(a.kernfunktionen),
+    bildschirme: toArr(a.bildschirme),
+    nutzerfluesse: toArr(a.nutzerfluesse),
+    ui_muster: toArr(a.ui_muster),
+    erlaubt_nachzubauen: toArr(a.erlaubt_nachzubauen),
+    nicht_kopieren: toArr(a.nicht_kopieren),
+    rechtliche_hinweise: toArr(a.rechtliche_hinweise),
+    vorschlag_name: safeName(a.vorschlag_name, brands),
+    vorschlag_design: String(a.vorschlag_design || "eigene Palette, eigenes Layout"),
+    // Rohdaten des Bauplans; werden in generateProject (nach Marken-Scrub) zum gueltigen Blueprint normalisiert
+    palette: a.palette && typeof a.palette === "object" ? a.palette : null,
+    entitaeten: Array.isArray(a.entitaeten) ? a.entitaeten : [],
+    screens: Array.isArray(a.screens) ? a.screens : []
+  };
+  analysis.blueprint = blueprintView(scrubDeep(analysis, brands), brands);
+  return analysis;
+}
+async function analyzeApp(rotator, app, onEvent) {
+  const name = checkName(app);
+  const a = await askJSON(rotator, makeTally(), onEvent, { task: "analyze", system: ANALYSIS_SYSTEM(LEGAL_RULES), user: "App: " + name, maxTokens: 6e3 });
+  return parseAnalysis(a, name);
+}
+var MIX_MAX = 4;
+async function mixApps(rotator, apps, onEvent, onStep = () => {
+}) {
+  const seen = /* @__PURE__ */ new Set();
+  const list2 = (apps || []).map((a) => String(a || "").trim()).filter((a) => a && !seen.has(a.toLowerCase()) && seen.add(a.toLowerCase()));
+  if (list2.length < 2) throw new Error("Zum Mischen brauche ich mindestens 2 Apps.");
+  if (list2.length > MIX_MAX) throw new Error(`Maximal ${MIX_MAX} Apps zum Mischen (du hast ${list2.length} genannt).`);
+  list2.forEach(checkName);
+  const parts = [];
+  for (let i = 0; i < list2.length; i++) {
+    onStep({ label: `Analysiere ${i + 1}/${list2.length}: ${list2[i]}`, done: i, total: list2.length + 1 });
+    const a = await askJSON(rotator, makeTally(), onEvent, { task: "analyze", system: ANALYSIS_SYSTEM(LEGAL_RULES), user: "App: " + list2[i], maxTokens: 6e3 });
+    parts.push({ app: list2[i], a });
+  }
+  onStep({ label: "Mische zu einer neuen App \u2026", done: list2.length, total: list2.length + 1 });
+  const compact = parts.map((p) => ({
+    app: p.app,
+    kategorie: p.a.kategorie,
+    zusammenfassung: p.a.zusammenfassung,
+    kernfunktionen: toArr(p.a.kernfunktionen),
+    erlaubt_nachzubauen: toArr(p.a.erlaubt_nachzubauen),
+    nicht_kopieren: toArr(p.a.nicht_kopieren),
+    entitaeten: Array.isArray(p.a.entitaeten) ? p.a.entitaeten : [],
+    screens: Array.isArray(p.a.screens) ? p.a.screens : []
+  }));
+  const system = ANALYSIS_SYSTEM(LEGAL_RULES) + `
+
+APP-MIXER: Du bekommst ${list2.length} analysierte Apps. Erfinde daraus EINE neue, stimmige App mit eigenem Konzept und eigenem Namen: nimm von jeder App die wertvollsten freien Funktionen und verbinde sie sinnvoll (gemeinsame Daten, ein roter Faden, keine losen Einzel-Apps nebeneinander). Die Entitaeten muessen zusammen passen (Verweise zwischen Tabellen nutzen, wo die Funktionen sich verbinden). Halte dich an die Limits (max 6 Tabellen, max 6 Screens): lieber die besten Funktionen sauber als alles halb. Fuelle zusaetzlich das Feld
+ "herkunft": [{"app":"Name der Original-App","uebernommen":["welche Funktionen/Ideen aus dieser App in den Mix eingeflossen sind"]}]
+Name, Farben, Texte und Design sind neu und duerfen keiner der Original-Apps aehneln. "nicht_kopieren" fasst die geschuetzten Elemente ALLER Original-Apps zusammen.`;
+  const m = await askJSON(rotator, makeTally(), onEvent, { task: "analyze", system, user: "Zu mischende Apps:\n" + JSON.stringify(compact), maxTokens: 8e3 });
+  const analysis = parseAnalysis(m, list2);
+  const union = (x, y) => [.../* @__PURE__ */ new Set([...x, ...y])].slice(0, 12);
+  analysis.nicht_kopieren = union(analysis.nicht_kopieren, parts.flatMap((p) => toArr(p.a.nicht_kopieren)));
+  analysis.rechtliche_hinweise = union(analysis.rechtliche_hinweise, parts.flatMap((p) => toArr(p.a.rechtliche_hinweise)));
+  analysis.quellen = list2;
+  analysis.herkunft = (Array.isArray(m.herkunft) ? m.herkunft : []).slice(0, MIX_MAX).map((h) => ({ app: String(h && h.app || "").slice(0, 60), uebernommen: toArr(h && h.uebernommen) }));
+  analysis.blueprint = blueprintView(scrubDeep(analysis, list2), list2);
+  return analysis;
+}
+function blueprintView(clean, app) {
+  const bp = normalizeBlueprint(clean, app);
+  return {
+    entities: bp.entities.map((e) => ({ name: e.name, label: e.label, emoji: e.emoji, fields: e.fields.map((f) => f.name + ":" + f.type) })),
+    screens: bp.screens.map((s) => ({ title: s.title, emoji: s.emoji, entity: s.entity })),
+    palette: bp.palette,
+    notes: bp.notes
+  };
+}
+var HARD = /leer|kein export|Nicht erlaubtes Paket|Netzwerkaufruf/;
+async function writeFile(rotator, tally, onEvent, ctx, spec) {
+  const system = `Du bist Senior React-Native-Entwickler. Schreibe EINE Datei einer Expo-App mit lokalem Backend.
+${LEGAL_RULES}
+${FULLSTACK_RULES}
+${API_DOC}
+Gib NUR den kompletten Dateiinhalt aus. Keine Erklaerung, keine Markdown-Fences.`;
+  const user = `App-Konzept:
+${JSON.stringify(ctx.concept)}
+
+${spec.context ? "Schon vorhandene Dateien (Schnittstellen exakt beachten!):\n" + spec.context + "\n\n" : ""}${spec.prompt}${spec.extra || ""}`;
+  const res = await ask(rotator, tally, onEvent, { task: spec.task || "code", system, user, maxTokens: spec.maxTokens || 9e3, avoid: spec.avoid || [] });
+  return { content: stripFences(res.text), model: res.model };
+}
+async function produce(rotator, tally, onEvent, ctx, spec, app, fallback, report) {
+  let first;
+  try {
+    first = await writeFile(rotator, tally, onEvent, ctx, spec);
+  } catch (e) {
+    if (/Kein Model verfügbar|Alle Models fehlgeschlagen/.test(e.message)) throw e;
+    first = null;
+  }
+  let content = first ? first.content : "";
+  let issues = first ? checkFile(spec.path, content, app) : ["Datei ist leer"];
+  if (issues.length && first) {
+    try {
+      const retry = await writeFile(rotator, tally, onEvent, ctx, {
+        ...spec,
+        task: "fix",
+        avoid: [first.model],
+        extra: "\n\nKORREKTUR: Die letzte Version hatte diese Probleme: " + issues.join("; ") + ". Schreibe die Datei komplett neu und behebe sie vollstaendig."
+      });
+      const issues2 = checkFile(spec.path, retry.content, app);
+      if (issues2.length <= issues.length) {
+        content = retry.content;
+        issues = issues2;
+      }
+    } catch (e) {
+      if (/Kein Model verfügbar|Alle Models fehlgeschlagen/.test(e.message)) throw e;
+    }
+  }
+  if (issues.some((i) => HARD.test(i)) && fallback) {
+    report.fallbacks.push(`${spec.path}: ${issues.join(", ")}`);
+    return { path: spec.path, content: fallback(), generated: false, model: null };
+  }
+  return { path: spec.path, content, generated: true, issues, model: first ? first.model : null };
+}
+async function generateProject(rotator, app, analysis, onProgress = () => {
+}, opts = {}) {
+  const name = safeName(analysis.vorschlag_name, app);
+  const clean = scrubDeep({ ...analysis, vorschlag_name: name, blueprint: void 0 }, app);
+  const bp = normalizeBlueprint(clean, name);
+  const concept = { name, kategorie: clean.kategorie, zusammenfassung: clean.zusammenfassung, kernfunktionen: clean.kernfunktionen, nutzerfluesse: clean.nutzerfluesse, erlaubt_nachzubauen: clean.erlaubt_nachzubauen };
+  const tally = makeTally();
+  const report = { fallbacks: [] };
+  const total = 2 + 1 + bp.entities.length + bp.screens.length;
+  let cur = 0;
+  let base = "Starte \u2026";
+  const ev = (e) => onProgress({ label: `${base} \xB7 ${e.label}`, done: cur, total });
+  const ctx = { concept };
+  const step = (label) => {
+    base = label;
+    onProgress({ label: base + " \u2026", done: cur, total });
+  };
+  const cpKey = "v2|" + name + "|" + JSON.stringify(bp.schema) + "|" + bp.screens.map((x) => x.name).join(",");
+  let cp = { key: cpKey, files: {} };
+  const ckpt = opts.checkpoint;
+  if (ckpt) {
+    try {
+      const old = await ckpt.load();
+      if (old && old.key === cpKey && old.files) cp = old;
+    } catch (e) {
+    }
+  }
+  let resumed = 0;
+  const make = async (spec, fallback) => {
+    const hit = cp.files[spec.path];
+    if (hit && typeof hit.content === "string") {
+      resumed++;
+      return { path: spec.path, content: hit.content, generated: hit.generated !== false, model: hit.model || null, issues: [] };
+    }
+    const f = await produce(rotator, tally, ev, ctx, spec, app, fallback, report);
+    cp.files[spec.path] = { content: f.content, model: f.model, generated: f.generated };
+    if (ckpt) {
+      try {
+        await ckpt.save(cp);
+      } catch (e) {
+      }
+    }
+    return f;
+  };
+  const out = [];
+  step("Baue Grundgeruest (Datenbank, Theme, Navigation)");
+  const scaffold = [...buildScaffold({ name, analysis: clean }).filter((f) => f.path !== "index.js"), ...genConfigFiles(bp)];
+  cur++;
+  step("Schreibe Startdaten");
+  out.push(await make({ path: "src/db/seed.js", prompt: seedPrompt(bp, clean), maxTokens: 6e3 }, fallbackSeed));
+  cur++;
+  const extras = {};
+  for (const e of bp.entities) {
+    step(`Schreibe Backend-Logik ${e.name}`);
+    const f = await make({ path: `src/services/${e.extras}.js`, prompt: extrasPrompt(bp, e, clean), maxTokens: 6e3 }, () => fallbackExtras(e));
+    extras[e.name] = f.content;
+    out.push(f);
+    cur++;
+  }
+  for (const s of bp.screens) {
+    const e = bp.entities.find((x) => x.name === s.entity);
+    step(`Schreibe Screen ${s.title}`);
+    const context = `--- src/services/${e.extras}.js ---
+${extras[e.name].slice(0, 6e3)}
+
+--- src/db/schema.js (Auszug) ---
+${JSON.stringify(bp.schema.collections)}`;
+    const f = await make({ path: s.file, prompt: screenPrompt(bp, s), context, maxTokens: 9e3 }, () => genGenericScreen(bp, s));
+    out.push(f);
+    cur++;
+  }
+  step("Copyright-Check");
+  const scrubbed = [];
+  for (const f of out) {
+    const c = scrubBrand(f.content, app, name, "Clone");
+    if (c !== f.content) {
+      scrubbed.push(f.path);
+      f.content = c;
+    }
+  }
+  const files = [...scaffold.filter((f) => !out.some((o) => o.path === f.path)), ...out];
+  step("Pruefe die App (Syntax, Importe, Datenbank, Backend-Sandbox)");
+  const project = { name, files, blueprint: bp, models: Object.fromEntries(out.map((f) => [f.path, f.model])) };
+  const audit = await auditAndRepair(rotator, tally, project, { app, concept, clean, onProgress: (p) => onProgress({ ...p, done: cur, total }), onEvent: ev });
+  const warnungen = [];
+  for (const f of out) {
+    const is = checkFile(f.path, (files.find((x) => x.path === f.path) || f).content, app);
+    if (is.length) warnungen.push(`${f.path}: ${is.join(", ")}`);
+  }
+  const embedded = new Set(Object.keys((await Promise.resolve().then(() => (init_embedded(), embedded_exports))).EMBEDDED));
+  const markenFrei = files.filter((f) => !embedded.has(f.path)).every((f) => !findBrand(f.content, app).length && !findBrand(f.path, app).length);
+  if (ckpt) {
+    try {
+      await ckpt.clear();
+    } catch (e) {
+    }
+  }
+  onProgress({ label: "Fertig", done: total, total });
+  return {
+    name,
+    app,
+    slug: slugify(name),
+    files,
+    blueprint: bp,
+    report: { resumed, markenFrei, scrubbed, warnungen, fallbacks: report.fallbacks, blueprintNotes: bp.notes, audit, rotator: tally }
+  };
 }
 
 // src/agent.js
@@ -26362,7 +26901,7 @@ ${ideen.map((t, i) => `${i + 1}) ${t}`).join("\n")}`;
 function buildUser(project, history, message) {
   const bp = project.blueprint;
   const files = project.files;
-  const list = files.map((f) => f.path).filter((p) => !/^(src\/db\/engine\.js|src\/hooks\.js|src\/ui\/kit\.js|scripts\/|\.github\/)/.test(p));
+  const list2 = files.map((f) => f.path).filter((p) => !/^(src\/db\/engine\.js|src\/hooks\.js|src\/ui\/kit\.js|scripts\/|\.github\/)/.test(p));
   let budget = 28e3;
   const parts = [];
   for (const f of files) {
@@ -26380,7 +26919,7 @@ ${c}`);
   return `AKTUELLER BLUEPRINT:
 ${JSON.stringify(blueprintToRaw(bp))}
 
-DATEIEN: ${list.join(", ")}
+DATEIEN: ${list2.join(", ")}
 
 ${parts.join("\n\n")}
 
@@ -26615,7 +27154,7 @@ var realGit = {
   },
   dispatch(id) {
     try {
-      execSync(`gh workflow run mission.yml -f id=${id}`, { stdio: "pipe" });
+      execSync(`gh workflow run mission.yml -f kind=mission -f id=${id}`, { stdio: "pipe" });
       return true;
     } catch {
       return false;
@@ -26680,17 +27219,90 @@ async function runServerMission({ dir = ".", id, env = process.env, rotator, git
   save(res, `Mission ${id}: ${res.status}`);
   return res;
 }
+async function runCloneJob({ dir = ".", id, env = process.env, rotator, git = realGit, now = () => Date.now(), analyze = analyzeApp, mix = mixApps, generate = generateProject, throttleMs = 2e4 }) {
+  if (!/^c\d+$/.test(String(id || ""))) throw new Error("Ungueltige Klon-ID");
+  const cdir = path.join(dir, "clones", id);
+  const job = JSON.parse(fs.readFileSync(path.join(cdir, "job.json"), "utf8"));
+  const rot = rotator || new Rotator({ getSettings: () => settingsFromEnv(env) });
+  const status = { state: "running", stage: "Starte \u2026", done: 0, total: 0, startedAt: now(), app: job.app };
+  let lastCommit = 0;
+  const write = (force, msg) => {
+    fs.writeFileSync(path.join(cdir, "status.json"), JSON.stringify(status));
+    if (force || now() - lastCommit > throttleMs) {
+      lastCommit = now();
+      git.commit(msg || `Klon ${id}: ${status.stage}`.slice(0, 80));
+    }
+  };
+  const ckFile = path.join(cdir, "checkpoint.json");
+  const checkpoint = {
+    load: async () => {
+      try {
+        return JSON.parse(fs.readFileSync(ckFile, "utf8"));
+      } catch {
+        return null;
+      }
+    },
+    save: async (o) => fs.writeFileSync(ckFile, JSON.stringify(o)),
+    clear: async () => {
+      try {
+        fs.unlinkSync(ckFile);
+      } catch {
+      }
+    }
+  };
+  write(true);
+  try {
+    let analysis = job.analysis;
+    if (!analysis) {
+      status.stage = "Analysiere \u2026";
+      write(false);
+      const ev = (e) => {
+        status.stage = `Analysiere \xB7 ${e.label || ""}`;
+        write(false);
+      };
+      if (Array.isArray(job.app) && job.app.length > 1) analysis = await mix(rot, job.app, ev, (p) => {
+        status.stage = p.label;
+        write(false);
+      });
+      else analysis = await analyze(rot, Array.isArray(job.app) ? job.app[0] : job.app, ev);
+    }
+    const project = await generate(rot, job.app, analysis, (p) => {
+      status.stage = p.label;
+      status.done = p.done;
+      status.total = p.total;
+      write(false);
+    }, { checkpoint });
+    fs.writeFileSync(path.join(cdir, "project.json"), JSON.stringify(project));
+    status.state = "done";
+    status.stage = "Fertig";
+    status.done = status.total;
+    status.name = project.name;
+    write(true, `Klon ${id}: fertig`);
+  } catch (e) {
+    status.state = "error";
+    status.error = String(e && e.message || e).slice(0, 600);
+    status.stage = "Fehler";
+    write(true, `Klon ${id}: Fehler`);
+  }
+  return status;
+}
 var isMain = typeof process !== "undefined" && process.argv[1] && /runner\.m?js$/.test(process.argv[1]);
 if (isMain) {
-  runServerMission({ id: process.argv[2] }).then((m) => {
+  const [a, b] = process.argv.slice(2);
+  const job = a === "clone" ? runCloneJob({ id: b }).then((x) => {
+    console.log("Klon", x.state);
+    if (x.state === "error") process.exitCode = 1;
+  }) : runServerMission({ id: a === "mission" ? b : a }).then((m) => {
     console.log("Mission", m.status);
-  }, (e) => {
+  });
+  job.catch((e) => {
     console.error(e);
     process.exit(1);
   });
 }
 export {
   CAP_MS,
+  runCloneJob,
   runServerMission,
   settingsFromEnv
 };
