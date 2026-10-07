@@ -339,17 +339,52 @@ jobs:
           distribution: temurin
           java-version: 17
       - run: npm install
+      - name: Versionsnummer hochz\xE4hlen (n\xF6tig f\xFCr Updates und den Play Store)
+        run: node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('app.json','utf8'));a.expo.android=a.expo.android||{};a.expo.android.versionCode=\${{ github.run_number }};fs.writeFileSync('app.json',JSON.stringify(a,null,2))"
       - run: npx expo prebuild --platform android --no-install
-      - run: cd android && ./gradlew assembleRelease --no-daemon
-      - name: APK einsammeln
+      - name: Schlanker bauen (nur g\xE4ngige CPU-Typen)
+        run: printf '\\nreactNativeArchitectures=arm64-v8a,armeabi-v7a\\n' >> android/gradle.properties
+      - name: Signatur (nur wenn ein eigener Schl\xFCssel als Secret hinterlegt ist)
+        env:
+          KS: \${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KSP: \${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KSA: \${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > android/app/release.keystore
+            printf '\\nCF_STORE_PASSWORD=%s\\nCF_KEY_ALIAS=%s\\n' "$KSP" "$KSA" >> android/gradle.properties
+            node -e "const fs=require('fs');let g=fs.readFileSync('android/app/build.gradle','utf8');g=g.replace(/signingConfigs\\s*\\{/,'signingConfigs {\\n        release {\\n            storeFile file(\\'release.keystore\\')\\n            storePassword project.property(\\'CF_STORE_PASSWORD\\')\\n            keyAlias project.property(\\'CF_KEY_ALIAS\\')\\n            keyPassword project.property(\\'CF_STORE_PASSWORD\\')\\n        }');g=g.replace(/(buildTypes\\s*\\{[\\s\\S]*?release\\s*\\{[\\s\\S]*?)signingConfig signingConfigs\\.debug/,'\\$1signingConfig signingConfigs.release');fs.writeFileSync('android/app/build.gradle',g)"
+            echo "Eigener Schl\xFCssel wird verwendet."
+          else
+            echo "Kein eigener Schl\xFCssel hinterlegt \u2013 Debug-Signatur (zum Testen)."
+          fi
+      - name: Android bauen
+        run: |
+          set -o pipefail
+          cd android && ./gradlew assembleRelease bundleRelease --no-daemon --console=plain 2>&1 | tee ../gradle.log
+      - name: Fehlerprotokoll sichern (nur bei Fehler, Branch build-log)
+        if: failure()
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          { grep -n -i -E 'error|exception|caused by|exit value|what went wrong|> Task .*FAILED' gradle.log | head -60; echo ----; tail -n 250 gradle.log; } > /tmp/build-error.txt || echo "kein Log" > /tmp/build-error.txt
+          git config user.name CloneForge && git config user.email bot@cloneforge.local
+          git checkout -q --orphan build-log
+          git rm -rf . -q || true
+          cp /tmp/build-error.txt build-error.txt
+          git add build-error.txt && git commit -qm "Fehlerprotokoll Build \${{ github.run_number }}" && git push -f origin build-log || true
+      - name: APK und AAB einsammeln
         run: |
           SLUG=$(node -p "require('./package.json').name")
           mkdir -p out
           cp android/app/build/outputs/apk/release/*.apk "out/\${SLUG}.apk"
+          cp android/app/build/outputs/bundle/release/*.aab "out/\${SLUG}.aab"
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: out/*.apk
+          path: |
+            out/*.apk
+            out/*.aab
 
   source:
     runs-on: ubuntu-latest
