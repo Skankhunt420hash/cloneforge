@@ -113,43 +113,110 @@ export function DbGate({ children, color = '#4f46e5' }) {
   return children;
 }
 `,
-      "src/ui/kit.js": `import React from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Switch, Alert, Platform } from 'react-native';
+      "src/ui/kit.js": `import React, { useEffect, useRef } from 'react';
+import { View, Text, TextInput, Pressable, ScrollView, Switch, Alert, Platform, Animated } from 'react-native';
 import { theme } from '../theme.js';
 
 const t = theme;
 export const space = { xs: 4, sm: 8, md: 16, lg: 24 };
+const shadow = { boxShadow: '0 4px 12px rgba(0,0,0,0.25)' };
+const press = ({ pressed }) => ({ opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] });
 
-export function Screen({ title, children, scroll = true, right, padded = true }) {
+// Weiches Einblenden (Fade + leichtes Hochgleiten). delay in ms fuer gestaffelte Listen.
+export function FadeIn({ children, delay = 0, style }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(v, { toValue: 1, duration: 320, delay, useNativeDriver: Platform.OS !== 'web' }).start(); }, []);
+  return <Animated.View style={[{ opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }, style]}>{children}</Animated.View>;
+}
+
+export function Screen({ title, subtitle, children, scroll = true, right, padded = true, fab }) {
   const body = scroll
-    ? <ScrollView contentContainerStyle={{ padding: padded ? space.md : 0, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+    ? <ScrollView contentContainerStyle={{ padding: padded ? space.md : 0, paddingBottom: 96 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}><FadeIn>{children}</FadeIn></ScrollView>
     : <View style={{ flex: 1, padding: padded ? space.md : 0 }}>{children}</View>;
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       {title ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.md, paddingTop: space.lg, paddingBottom: space.sm }}>
-          <Text style={{ fontSize: 24, fontWeight: '800', color: t.text }}>{title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: space.md, paddingTop: space.lg, paddingBottom: space.sm }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 28, fontWeight: '800', color: t.text, letterSpacing: -0.5 }}>{title}</Text>
+            {subtitle ? <Text style={{ color: t.muted, marginTop: 2 }}>{subtitle}</Text> : null}
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.primary, marginTop: 8 }} />
+          </View>
           {right || null}
         </View>
       ) : null}
       {body}
+      {fab || null}
     </View>
   );
 }
 
 export function Card({ children, style, onPress }) {
-  const st = [{ backgroundColor: t.card, borderRadius: 14, padding: space.md, marginBottom: space.sm, borderWidth: 1, borderColor: t.border }, style];
-  return onPress ? <Pressable onPress={onPress} style={st}>{children}</Pressable> : <View style={st}>{children}</View>;
+  const st = [{ backgroundColor: t.card, borderRadius: 18, padding: space.md, marginBottom: 10, borderWidth: 1, borderColor: t.border }, shadow, style];
+  return onPress ? <Pressable onPress={onPress} style={s => [press(s), ...st]}>{children}</Pressable> : <View style={st}>{children}</View>;
 }
 
 export function Btn({ label, onPress, kind = 'primary', disabled, small }) {
   const bg = kind === 'primary' ? t.primary : kind === 'danger' ? t.danger : 'transparent';
   const fg = kind === 'ghost' ? t.primary : '#fff';
   return (
-    <Pressable onPress={disabled ? undefined : onPress} style={{ backgroundColor: bg, opacity: disabled ? 0.5 : 1, paddingVertical: small ? 8 : 12, paddingHorizontal: small ? 12 : 18, borderRadius: 12, alignItems: 'center', borderWidth: kind === 'ghost' ? 1 : 0, borderColor: t.primary, marginVertical: 4 }}>
+    <Pressable onPress={disabled ? undefined : onPress} style={s => [press(s), { backgroundColor: bg, opacity: disabled ? 0.45 : press(s).opacity, paddingVertical: small ? 8 : 13, paddingHorizontal: small ? 14 : 20, borderRadius: 14, alignItems: 'center', borderWidth: kind === 'ghost' ? 1.5 : 0, borderColor: t.primary, marginVertical: 4, marginRight: 6 }, kind === 'primary' ? shadow : null]}>
       <Text style={{ color: fg, fontWeight: '700', fontSize: small ? 13 : 15 }}>{label}</Text>
     </Pressable>
   );
+}
+
+// Schwebender Plus-Knopf unten rechts
+export function FAB({ label = '+', onPress }) {
+  return (
+    <Pressable onPress={onPress} style={s => [press(s), { position: 'absolute', right: 18, bottom: 18, minWidth: 56, height: 56, paddingHorizontal: 18, borderRadius: 28, backgroundColor: t.primary, alignItems: 'center', justifyContent: 'center' }, shadow]}>
+      <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function SearchBar({ value, onChangeText, placeholder = 'Suchen \u2026' }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: t.card, borderRadius: 14, borderWidth: 1, borderColor: t.border, paddingHorizontal: 12, marginBottom: space.sm }}>
+      <Text style={{ marginRight: 8 }}>\u{1F50E}</Text>
+      <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={t.muted} style={{ flex: 1, color: t.text, paddingVertical: 12 }} />
+      {value ? <Text onPress={() => onChangeText('')} style={{ color: t.muted, padding: 6 }}>\u2715</Text> : null}
+    </View>
+  );
+}
+
+// Runder Buchstaben-/Emoji-Kreis
+export function Avatar({ label, size = 40, color }) {
+  const txt = String(label || '?');
+  const isEmoji = /\\p{Extended_Pictographic}/u.test(txt);
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: (color || t.primary) + '33', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+      <Text style={{ fontSize: isEmoji ? size * 0.5 : size * 0.42, fontWeight: '800', color: color || t.primary }}>{isEmoji ? txt : txt.slice(0, 1).toUpperCase()}</Text>
+    </View>
+  );
+}
+
+// Kennzahl-Karte
+export function Stat({ label, value, icon, onPress }) {
+  return (
+    <Card onPress={onPress} style={{ flex: 1, minWidth: 130, marginRight: 8 }}>
+      {icon ? <Text style={{ fontSize: 22 }}>{icon}</Text> : null}
+      <Text style={{ color: t.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 }}>{value}</Text>
+      <Text style={{ color: t.muted, fontSize: 12 }}>{label}</Text>
+    </Card>
+  );
+}
+
+export function ProgressBar({ value = 0, max = 100, color }) {
+  const pct = Math.max(0, Math.min(100, max ? (value / max) * 100 : 0));
+  return <View style={{ height: 8, borderRadius: 4, backgroundColor: t.border, overflow: 'hidden', marginVertical: 4 }}><View style={{ height: 8, width: pct + '%', borderRadius: 4, backgroundColor: color || t.primary }} /></View>;
+}
+
+// Platzhalter beim Laden (pulsierend)
+export function Skeleton({ lines = 3 }) {
+  const v = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => { const a = Animated.loop(Animated.sequence([Animated.timing(v, { toValue: 1, duration: 700, useNativeDriver: Platform.OS !== 'web' }), Animated.timing(v, { toValue: 0.4, duration: 700, useNativeDriver: Platform.OS !== 'web' })])); a.start(); return () => a.stop(); }, []);
+  return <Animated.View style={{ opacity: v }}>{Array.from({ length: lines }).map((_, i) => <View key={i} style={{ height: 60, borderRadius: 16, backgroundColor: t.card, marginBottom: 10, borderWidth: 1, borderColor: t.border }} />)}</Animated.View>;
 }
 
 export function Field({ label, value, onChangeText, placeholder, multiline, keyboardType, secure }) {
@@ -158,7 +225,7 @@ export function Field({ label, value, onChangeText, placeholder, multiline, keyb
       {label ? <Text style={{ color: t.muted, fontSize: 12, marginBottom: 4 }}>{label}</Text> : null}
       <TextInput value={value == null ? '' : String(value)} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={t.muted}
         multiline={multiline} keyboardType={keyboardType} secureTextEntry={secure}
-        style={{ backgroundColor: t.card, color: t.text, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 12, minHeight: multiline ? 90 : undefined, textAlignVertical: multiline ? 'top' : 'center' }} />
+        style={{ backgroundColor: t.card, color: t.text, borderWidth: 1, borderColor: t.border, borderRadius: 14, padding: 13, minHeight: multiline ? 90 : undefined, textAlignVertical: multiline ? 'top' : 'center' }} />
     </View>
   );
 }
@@ -174,41 +241,43 @@ export function Toggle({ label, value, onValueChange }) {
 
 export function Chip({ label, active, onPress }) {
   return (
-    <Pressable onPress={onPress} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, marginRight: 6, marginBottom: 6, backgroundColor: active ? t.primary : t.card, borderWidth: 1, borderColor: active ? t.primary : t.border }}>
+    <Pressable onPress={onPress} style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, marginRight: 6, marginBottom: 6, backgroundColor: active ? t.primary : t.card, borderWidth: 1, borderColor: active ? t.primary : t.border }}>
       <Text style={{ color: active ? '#fff' : t.text, fontSize: 13 }}>{label}</Text>
     </Pressable>
   );
 }
 
 export function Badge({ label, color }) {
-  return <Text style={{ alignSelf: 'flex-start', backgroundColor: color || t.accent, color: '#fff', fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' }}>{label}</Text>;
+  return <Text style={{ alignSelf: 'flex-start', backgroundColor: color || t.accent, color: '#fff', fontSize: 11, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' }}>{label}</Text>;
 }
 
-export function Empty({ text = 'Noch nichts da.', action }) {
+export function Empty({ text = 'Noch nichts da.', icon = '\u{1F331}', action }) {
   return (
-    <View style={{ alignItems: 'center', padding: space.lg }}>
+    <View style={{ alignItems: 'center', padding: space.lg, marginVertical: space.md, borderRadius: 18, borderWidth: 1, borderStyle: 'dashed', borderColor: t.border }}>
+      <Text style={{ fontSize: 40, marginBottom: 6 }}>{icon}</Text>
       <Text style={{ color: t.muted, marginBottom: 8, textAlign: 'center' }}>{text}</Text>
       {action || null}
     </View>
   );
 }
 
-export function ListItem({ title, subtitle, right, onPress }) {
+export function ListItem({ title, subtitle, right, onPress, icon }) {
   return (
-    <Card onPress={onPress}>
+    <Card onPress={onPress} style={{ paddingVertical: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {icon ? <Avatar label={icon} /> : null}
         <View style={{ flex: 1 }}>
-          <Text style={{ color: t.text, fontWeight: '700', fontSize: 15 }}>{title}</Text>
-          {subtitle ? <Text style={{ color: t.muted, marginTop: 2 }}>{subtitle}</Text> : null}
+          <Text numberOfLines={1} style={{ color: t.text, fontWeight: '700', fontSize: 16 }}>{title}</Text>
+          {subtitle ? <Text numberOfLines={2} style={{ color: t.muted, marginTop: 2, fontSize: 13 }}>{subtitle}</Text> : null}
         </View>
-        {right || null}
+        {right || (onPress ? <Text style={{ color: t.muted, fontSize: 20 }}>\u203A</Text> : null)}
       </View>
     </Card>
   );
 }
 
 export function Row({ children, style }) { return <View style={[{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }, style]}>{children}</View>; }
-export function H2({ children }) { return <Text style={{ color: t.text, fontSize: 17, fontWeight: '800', marginVertical: space.sm }}>{children}</Text>; }
+export function H2({ children }) { return <Text style={{ color: t.text, fontSize: 18, fontWeight: '800', marginTop: space.md, marginBottom: space.sm, letterSpacing: -0.2 }}>{children}</Text>; }
 export function Muted({ children }) { return <Text style={{ color: t.muted }}>{children}</Text>; }
 
 // Bestaetigungsdialog, der auch im Web funktioniert (Alert.alert tut dort nichts).
@@ -299,10 +368,325 @@ export default function DataScreen() {
   );
 }
 `,
+      "src/selfdoctor.js": "import React from 'react';\nimport { View, Text, Pressable } from 'react-native';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\nimport { db } from './db/index.js';\nimport { schema } from './db/schema.js';\nimport { theme } from './theme.js';\n\n// Selbst-Doktor dieser App: prueft Speicher und Daten, repariert automatisch und haelt taegliche Sicherungen.\n// Laeuft komplett lokal, ohne Server und ohne KI.\nconst SNAP = 'selfdoctor_snapshot';\nconst DAY = 86400000;\n\nconst cols = () => Object.keys(schema.collections);\nconst defs = c => schema.collections[c].fields;\nconst all = c => db.collection(c).list();\nconst hasRef = (c, id) => db.collection(c).get(id) != null;\n\n// Findet kaputte Datensaetze: falscher Typ, Pflichtfeld leer, ungueltiger Auswahlwert, Verweis ins Leere.\nexport function findProblems() {\n  const out = [];\n  for (const c of cols()) {\n    for (const row of all(c)) {\n      for (const [f, d] of Object.entries(defs(c))) {\n        const v = row[f];\n        const empty = v == null || v === '';\n        if (empty) { if (d.required) out.push({ coll: c, id: row.id, field: f, kind: 'required', msg: `${c}.${f} fehlt` }); continue; }\n        if (d.type === 'number' && typeof v !== 'number') out.push({ coll: c, id: row.id, field: f, kind: 'type', msg: `${c}.${f} ist keine Zahl` });\n        else if (d.type === 'boolean' && typeof v !== 'boolean') out.push({ coll: c, id: row.id, field: f, kind: 'type', msg: `${c}.${f} ist kein Ja/Nein` });\n        else if (d.type === 'enum' && !(d.values || []).includes(v)) out.push({ coll: c, id: row.id, field: f, kind: 'enum', msg: `${c}.${f}: \"${v}\" ist kein gueltiger Wert` });\n        else if (d.type === 'ref' && !hasRef(d.to, v)) out.push({ coll: c, id: row.id, field: f, kind: 'ref', msg: `${c}.${f} zeigt auf einen geloeschten Eintrag` });\n      }\n    }\n  }\n  return out;\n}\n\nasync function storageProbe() {\n  try {\n    const k = 'selfdoctor_probe';\n    await AsyncStorage.setItem(k, 'ok');\n    const v = await AsyncStorage.getItem(k);\n    await AsyncStorage.removeItem(k);\n    return v === 'ok';\n  } catch (e) { return false; }\n}\n\nasync function readSnap(key) {\n  try { const raw = await AsyncStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }\n}\n\nexport async function diagnose() {\n  const checks = [];\n  const add = (name, ok, detail, level = 'error') => checks.push({ name, ok, detail: detail || '', level });\n  const h = db.isReady ? db.health() : { ready: false };\n  add('Datenbank bereit', !!h.ready, h.ready ? '' : 'Die Datenbank ist nicht gestartet');\n  add('Keine Fehler im Betrieb', !h.lastError, h.lastError || '');\n  add('Start ohne Datenrettung', !h.recovered, h.recovered ? 'Beim Start musste die Datenbank repariert werden' : '', 'warn');\n  add('Startdaten fehlerfrei', !h.seedErrors, h.seedErrors ? h.seedErrors + ' Startdaten fehlerhaft' : '', 'warn');\n  add('Speicher lesen und schreiben', await storageProbe(), 'Das Geraet verweigert das Speichern (Browser-Privatmodus oder Speicher voll?)');\n  const problems = h.ready ? findProblems() : [];\n  add('Daten stimmig (Typen, Pflichtfelder, Verweise)', !problems.length, problems.length ? problems.length + ' Problem(e), z. B. ' + problems[0].msg : '');\n  const snap = await readSnap(SNAP);\n  add('Sicherung vorhanden', !!snap, snap ? 'vom ' + new Date(snap.at).toLocaleDateString() : 'noch keine, wird beim naechsten Start angelegt', 'warn');\n  const bad = checks.filter(c => !c.ok);\n  return { ok: !bad.some(c => c.level === 'error'), errors: bad.filter(c => c.level === 'error').length, warnings: bad.filter(c => c.level === 'warn').length, checks, problems, counts: h.ready ? h.counts : {}, at: Date.now() };\n}\n\n// Sicherung der Daten (hoechstens eine pro Tag, ausser force)\nexport async function snapshot(force) {\n  if (!db.isReady) return false;\n  const cur = await readSnap(SNAP);\n  if (!force && cur && Date.now() - cur.at < DAY) return false;\n  if (findProblems().length) return false; // keine kaputten Daten sichern\n  await AsyncStorage.setItem(SNAP, JSON.stringify({ at: Date.now(), json: db.exportJSON() }));\n  return true;\n}\n\nexport async function restoreSnapshot(key = SNAP) {\n  const s = await readSnap(key);\n  if (!s) throw new Error('Keine Sicherung vorhanden.');\n  await db.importJSON(s.json);\n  await db.flush();\n  return new Date(s.at).toLocaleString();\n}\n\n// Repariert Datensaetze: Zahlen/Ja-Nein korrigieren, Waisen-Verweise leeren, Pflichtfelder fuellen; nur wenn gar nichts hilft, wird der Eintrag entfernt.\nexport async function heal() {\n  const fixed = [];\n  const failed = [];\n  if (!db.isReady) { failed.push('Datenbank nicht bereit'); return { fixed, failed }; }\n  for (const p of findProblems()) {\n    const d = defs(p.coll)[p.field];\n    const col = db.collection(p.coll);\n    try {\n      if (p.kind === 'type' && d.type === 'number' && Number.isFinite(Number(col.get(p.id)[p.field]))) await col.update(p.id, { [p.field]: Number(col.get(p.id)[p.field]) });\n      else if (p.kind === 'type' && d.type === 'boolean') await col.update(p.id, { [p.field]: !!col.get(p.id)[p.field] });\n      else if (p.kind === 'required' && d.type === 'string') await col.update(p.id, { [p.field]: '(ohne Titel)' });\n      else if (p.kind === 'enum' || p.kind === 'ref' || p.kind === 'type') {\n        if (d.required) await col.remove(p.id); else await col.update(p.id, { [p.field]: d.default !== undefined ? d.default : null });\n      } else await col.remove(p.id);\n      fixed.push(p.msg);\n    } catch (e) {\n      try { await col.remove(p.id); fixed.push(p.msg + ' (Eintrag entfernt)'); } catch (e2) { failed.push(p.msg + ': ' + (e2.message || e2)); }\n    }\n  }\n  await db.flush();\n  return { fixed, failed };\n}\n\n// Beim App-Start: pruefen, still reparieren, sichern\nexport async function startup() {\n  try {\n    let d = await diagnose();\n    let healed = null;\n    if (d.problems.length) { healed = await heal(); d = await diagnose(); }\n    else await snapshot(false);\n    return { report: d, healed };\n  } catch (e) { return { report: null, healed: null, error: String((e && e.message) || e) }; }\n}\n\n// Faengt Abstuerze eines Screens ab: Meldung, Selbstheilung und Neustart des Screens statt weissem Bildschirm\nexport class SafeBoundary extends React.Component {\n  constructor(p) { super(p); this.state = { err: null, msg: '' }; }\n  static getDerivedStateFromError(err) { return { err }; }\n  async tryHeal() {\n    this.setState({ msg: 'Repariere \u2026' });\n    try { const r = await heal(); this.setState({ err: null, msg: '' }); if (this.props.onHealed) this.props.onHealed(r); } catch (e) { this.setState({ msg: 'Reparatur fehlgeschlagen: ' + String((e && e.message) || e) }); }\n  }\n  render() {\n    if (!this.state.err) return this.props.children;\n    return (\n      <View style={{ flex: 1, padding: 24, justifyContent: 'center', backgroundColor: theme.bg }}>\n        <Text style={{ fontSize: 40, textAlign: 'center' }}>\u{1FA7A}</Text>\n        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 18, textAlign: 'center', marginTop: 8 }}>Dieser Bereich hatte ein Problem</Text>\n        <Text style={{ color: theme.muted, textAlign: 'center', marginTop: 6 }}>{String(this.state.err.message || this.state.err).slice(0, 160)}</Text>\n        {this.state.msg ? <Text style={{ color: theme.muted, textAlign: 'center', marginTop: 6 }}>{this.state.msg}</Text> : null}\n        <Pressable onPress={() => this.tryHeal()} style={{ backgroundColor: theme.primary, padding: 14, borderRadius: 14, marginTop: 16, alignItems: 'center' }}><Text style={{ color: '#fff', fontWeight: '700' }}>\u{1FA7A} Selbstheilung und neu laden</Text></Pressable>\n        <Pressable onPress={() => this.setState({ err: null, msg: '' })} style={{ padding: 14, alignItems: 'center' }}><Text style={{ color: theme.primary }}>Nur neu laden</Text></Pressable>\n      </View>\n    );\n  }\n}\n",
+      "src/screens/DoctorScreen.js": `import React, { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
+import { Screen, Card, Btn, H2, Muted, Badge, confirmDialog } from '../ui/kit.js';
+import { diagnose, heal, snapshot, restoreSnapshot } from '../selfdoctor.js';
+import { theme } from '../theme.js';
+
+// Gesundheits-Check der App: pruefen, reparieren, sichern, wiederherstellen
+export default function DoctorScreen() {
+  const [rep, setRep] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const run = async (fn, okMsg) => {
+    setBusy(true); setMsg('');
+    try { const r = await fn(); setMsg(typeof okMsg === 'function' ? okMsg(r) : okMsg || ''); } catch (e) { setMsg('Fehler: ' + String((e && e.message) || e)); }
+    setRep(await diagnose()); setBusy(false);
+  };
+  useEffect(() => { run(async () => {}); }, []);
+  const total = rep ? Object.values(rep.counts).reduce((a, b) => a + b, 0) : 0;
+  return (
+    <Screen title="Gesundheit" subtitle={rep ? (rep.ok ? 'Alles in Ordnung' : rep.errors + ' Problem(e) gefunden') : 'Pruefe \u2026'}>
+      <Card style={{ backgroundColor: rep && !rep.ok ? theme.danger : theme.primary, borderColor: 'transparent' }}>
+        <Text style={{ fontSize: 40 }}>{!rep ? '\u23F3' : rep.ok ? '\u2705' : '\u{1FA7A}'}</Text>
+        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 18 }}>{!rep ? 'Pruefe \u2026' : rep.ok ? 'Die App ist gesund' : 'Reparatur noetig'}</Text>
+        <Text style={{ color: '#ffffffcc' }}>{total} Datensaetze \xB7 {rep ? rep.warnings : 0} Hinweis(e)</Text>
+      </Card>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <Btn label="\u{1F504} Neu pruefen" onPress={() => run(async () => {}, 'Geprueft.')} disabled={busy} />
+        <Btn label="\u{1F6E0}\uFE0F Reparieren" onPress={() => run(heal, r => \`\${r.fixed.length} repariert\${r.failed.length ? ', ' + r.failed.length + ' nicht moeglich' : ''}.\`)} disabled={busy} />
+        <Btn kind="ghost" label="\u{1F4BE} Jetzt sichern" onPress={() => run(() => snapshot(true), 'Sicherung angelegt.')} disabled={busy} />
+      </View>
+      {msg ? <Text style={{ color: theme.text, marginVertical: 6 }}>{msg}</Text> : null}
+      <H2>Pruefungen</H2>
+      {rep ? rep.checks.map(c => (
+        <Card key={c.name}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ color: theme.text, flex: 1, fontWeight: '600' }}>{c.ok ? '\u2705' : c.level === 'warn' ? '\u26A0\uFE0F' : '\u274C'} {c.name}</Text>
+            {!c.ok ? <Badge label={c.level === 'warn' ? 'Hinweis' : 'Fehler'} color={c.level === 'warn' ? theme.accent : theme.danger} /> : null}
+          </View>
+          {c.detail ? <Muted>{c.detail}</Muted> : null}
+        </Card>
+      )) : null}
+      <H2>Notfall</H2>
+      <Muted>Die App sichert deine Daten automatisch einmal pro Tag auf diesem Geraet. Die Reparatur aendert nur kaputte Eintraege.</Muted>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+        <Btn kind="danger" label="\u23EA Tages-Sicherung einspielen" disabled={busy} onPress={() => confirmDialog('Aktuelle Daten durch die letzte Sicherung ersetzen?', () => run(restoreSnapshot, d => 'Sicherung vom ' + d + ' eingespielt.'))} />
+      </View>
+    </Screen>
+  );
+}
+`,
+      "src/settings.js": "import { useEffect, useState } from 'react';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\nimport { applyTheme } from './theme.js';\n\n// App-Einstellungen (lokal gespeichert): Darstellung, Willkommens-Tour\nconst KEY = 'app_settings';\nlet state = { mode: 'auto', accent: null, onboarded: false, loaded: false };\nconst subs = new Set();\nconst notify = () => subs.forEach(fn => { try { fn(state); } catch (e) { /* egal */ } });\n\nexport const getSettings = () => state;\nexport function subscribeSettings(fn) { subs.add(fn); return () => subs.delete(fn); }\n\nexport async function initSettings() {\n  try { const raw = await AsyncStorage.getItem(KEY); if (raw) state = { ...state, ...JSON.parse(raw) }; } catch (e) { /* Standardwerte */ }\n  state = { ...state, loaded: true };\n  applyTheme(state);\n  notify();\n  return state;\n}\n\nexport async function updateSettings(patch) {\n  state = { ...state, ...patch };\n  applyTheme(state);\n  notify();\n  try { await AsyncStorage.setItem(KEY, JSON.stringify({ mode: state.mode, accent: state.accent, onboarded: state.onboarded })); } catch (e) { /* egal */ }\n}\n\nexport function useSettings() {\n  const [, tick] = useState(0);\n  useEffect(() => subscribeSettings(() => tick(n => n + 1)), []);\n  return state;\n}\n",
+      "src/toast.js": `import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Platform, Text, View } from 'react-native';
+import { theme } from './theme.js';
+
+// Kurze Rueckmeldungen unten ("Gespeichert \u2713"). toast('Text') von ueberall aufrufbar.
+let current = null;
+const subs = new Set();
+let timer = null;
+export function toast(text, kind = 'ok') {
+  current = { id: Date.now() + Math.random(), text: String(text), kind };
+  subs.forEach(fn => fn(current));
+  clearTimeout(timer);
+  timer = setTimeout(() => { current = null; subs.forEach(fn => fn(null)); }, 2200);
+}
+
+export function ToastHost() {
+  const [item, setItem] = useState(null);
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => { const fn = x => setItem(x); subs.add(fn); return () => subs.delete(fn); }, []);
+  useEffect(() => { Animated.timing(v, { toValue: item ? 1 : 0, duration: 220, useNativeDriver: Platform.OS !== 'web' }).start(); }, [item]);
+  if (!item) return null;
+  const bg = item.kind === 'error' ? theme.danger : theme.text;
+  return (
+    <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 16, right: 16, bottom: 90, alignItems: 'center', opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+      <View style={{ backgroundColor: bg, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+        <Text style={{ color: theme.bg, fontWeight: '700' }}>{item.text}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+`,
+      "src/activity.js": "import AsyncStorage from '@react-native-async-storage/async-storage';\nimport { db } from './db/index.js';\nimport { META } from './meta.js';\nimport { toast } from './toast.js';\n\n// Aktivitaets-Verlauf: jede Aenderung an den Daten wird protokolliert (letzte 200) und mit einer Rueckmeldung bestaetigt.\nconst KEY = 'activity_log';\nconst WORD = { insert: 'angelegt', update: 'geaendert', remove: 'geloescht', import: 'importiert', reset: 'zurueckgesetzt' };\nconst MSG = { insert: 'Gespeichert \u2713', update: 'Aktualisiert \u2713', remove: 'Geloescht', import: 'Importiert \u2713', reset: 'Zurueckgesetzt' };\nlet log = null;\nlet started = false;\nlet saveT = null;\nconst listeners = new Set();\n\nasync function load() {\n  if (log) return log;\n  try { const raw = await AsyncStorage.getItem(KEY); log = raw ? JSON.parse(raw) : []; } catch (e) { log = []; }\n  if (!Array.isArray(log)) log = [];\n  return log;\n}\nconst persist = () => { clearTimeout(saveT); saveT = setTimeout(() => AsyncStorage.setItem(KEY, JSON.stringify(log.slice(0, 200))).catch(() => {}), 600); };\nconst label = c => { const m = META.find(x => x.name === c); return m ? `${m.emoji} ${m.label}` : c; };\n\nexport function startActivity() {\n  if (started) return;\n  started = true;\n  load();\n  db.subscribe(ev => {\n    if (!ev || !WORD[ev.type]) return;\n    load().then(() => {\n      log.unshift({ t: Date.now(), type: ev.type, text: `${(ev.collections || []).map(label).join(', ')} ${WORD[ev.type]}` });\n      log = log.slice(0, 200);\n      persist();\n      listeners.forEach(fn => fn());\n    });\n    toast(MSG[ev.type]);\n  });\n}\nexport const getLog = () => load().then(l => l.slice());\nexport const onActivity = fn => { listeners.add(fn); return () => listeners.delete(fn); };\nexport async function clearLog() { log = []; persist(); listeners.forEach(fn => fn()); }\n",
+      "src/welcome.js": "import React from 'react';\nimport { Pressable, ScrollView, Text, View } from 'react-native';\nimport { theme } from './theme.js';\nimport { APP } from './meta.js';\n\n// Willkommens-Tour beim ersten Start\nexport default function Welcome({ onDone }) {\n  return (\n    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: theme.bg, zIndex: 100 }}>\n      <ScrollView contentContainerStyle={{ padding: 28, paddingTop: 80 }}>\n        <Text style={{ fontSize: 56 }}>{APP.emoji}</Text>\n        <Text style={{ color: theme.text, fontSize: 34, fontWeight: '800', letterSpacing: -1, marginTop: 8 }}>Willkommen bei {APP.name}</Text>\n        <Text style={{ color: theme.muted, fontSize: 16, marginTop: 8 }}>Alles laeuft lokal auf deinem Geraet. Keine Anmeldung, kein Server, deine Daten gehoeren dir.</Text>\n        <View style={{ marginTop: 28 }}>\n          {APP.features.map(f => (\n            <View key={f.title} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>\n              <Text style={{ fontSize: 28, width: 44 }}>{f.emoji}</Text>\n              <View style={{ flex: 1 }}>\n                <Text style={{ color: theme.text, fontWeight: '700', fontSize: 16 }}>{f.title}</Text>\n                {f.text ? <Text style={{ color: theme.muted }}>{f.text}</Text> : null}\n              </View>\n            </View>\n          ))}\n        </View>\n        <Pressable onPress={onDone} style={{ backgroundColor: theme.primary, padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 28 }}>\n          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Los geht's</Text>\n        </Pressable>\n      </ScrollView>\n    </View>\n  );\n}\n",
+      "src/screens/SettingsScreen.js": `import React, { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
+import { Screen, Card, Btn, Chip, H2, Muted, Row } from '../ui/kit.js';
+import { useSettings, updateSettings } from '../settings.js';
+import { ACCENTS, theme } from '../theme.js';
+import { getLog, onActivity, clearLog } from '../activity.js';
+import { APP } from '../meta.js';
+
+const MODES = [['auto', '\u{1F317} Automatisch'], ['light', '\u2600\uFE0F Hell'], ['dark', '\u{1F319} Dunkel']];
+const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'gerade eben' : m < 60 ? \`vor \${m} Min.\` : m < 1440 ? \`vor \${Math.round(m / 60)} Std.\` : new Date(t).toLocaleDateString(); };
+
+export default function SettingsScreen() {
+  const st = useSettings();
+  const [log, setLog] = useState([]);
+  useEffect(() => { const f = () => getLog().then(setLog); f(); return onActivity(f); }, []);
+  return (
+    <Screen title="Einstellungen" subtitle={\`\${APP.name} \xB7 Version \${APP.version}\`}>
+      <Card>
+        <H2>Darstellung</H2>
+        <Muted>Modus</Muted>
+        <Row>{MODES.map(([k, l]) => <Chip key={k} label={l} active={st.mode === k} onPress={() => updateSettings({ mode: k })} />)}</Row>
+        <Muted>Akzentfarbe</Muted>
+        <Row>
+          {ACCENTS.map(c => (
+            <Text key={c} onPress={() => updateSettings({ accent: c })} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c, marginRight: 10, marginTop: 6, borderWidth: 3, borderColor: (st.accent || ACCENTS[0]) === c ? theme.text : 'transparent', overflow: 'hidden' }}> </Text>
+          ))}
+        </Row>
+      </Card>
+      <Card>
+        <H2>Verlauf</H2>
+        {log.length === 0 ? <Muted>Noch keine Aenderungen.</Muted> : log.slice(0, 25).map((l, i) => (
+          <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text style={{ color: theme.text, flex: 1 }}>{l.text}</Text>
+            <Text style={{ color: theme.muted, fontSize: 12 }}>{ago(l.t)}</Text>
+          </View>
+        ))}
+        {log.length ? <Btn small kind="ghost" label="Verlauf leeren" onPress={clearLog} /> : null}
+      </Card>
+      <Card>
+        <H2>Ueber die App</H2>
+        <Muted>{APP.name} \xB7 Version {APP.version}</Muted>
+        <Muted>Datenschutz: Alle Daten bleiben auf diesem Geraet. Die App hat kein Konto, keinen Server und sendet nichts ins Internet. Sicherungen findest du unter \u201EDaten", die Gesundheit der App unter \u201EGesund".</Muted>
+        <Btn small kind="ghost" label="Willkommens-Tour nochmal zeigen" onPress={() => updateSettings({ onboarded: false })} />
+      </Card>
+    </Screen>
+  );
+}
+`,
+      "desktop/main.js": `// Desktop-Huelle (Electron): zeigt die Web-App in einem eigenen Fenster, komplett offline.
+// Windows (.exe), macOS (.dmg), Linux (.AppImage/.deb). Die App-Dateien liegen im Ordner "app" (Web-Export).
+const { app, BrowserWindow, protocol, net, shell, Menu } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const { pathToFileURL } = require('url');
+
+const ROOT = path.join(__dirname, 'app');
+const TITLE = require('./package.json').productName || 'App';
+
+protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+
+if (!app.requestSingleInstanceLock()) app.quit();
+
+function fileFor(urlPath) {
+  let p = decodeURIComponent(urlPath || '/');
+  if (p === '/' || !path.extname(p)) p = '/index.html'; // Einzel-Seiten-App: jede Adresse -> index.html
+  const full = path.normalize(path.join(ROOT, p));
+  if (!full.startsWith(ROOT) || !fs.existsSync(full)) return path.join(ROOT, 'index.html');
+  return full;
+}
+
+function createWindow() {
+  const win = new BrowserWindow({ width: 1100, height: 780, minWidth: 380, minHeight: 560, title: TITLE, autoHideMenuBar: true, backgroundColor: '#101216', webPreferences: { contextIsolation: true, sandbox: true } });
+  win.loadURL('app://local/index.html');
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://')) { e.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); } });
+}
+
+app.whenReady().then(() => {
+  protocol.handle('app', req => net.fetch(pathToFileURL(fileFor(new URL(req.url).pathname)).toString()));
+  Menu.setApplicationMenu(null);
+  createWindow();
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+});
+app.on('second-instance', () => { const w = BrowserWindow.getAllWindows()[0]; if (w) { if (w.isMinimized()) w.restore(); w.focus(); } });
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+`,
+      "src/nav.js": "import React, { createContext, useContext } from 'react';\n\n// Einfache Navigation: go('Detail', { entity, id }) springt zu einem Screen, back() zurueck.\nconst Ctx = createContext({ go: () => {}, back: () => {}, params: {}, current: '' });\nexport const NavProvider = Ctx.Provider;\nexport function useNav() { return useContext(Ctx); }\n",
+      "src/screens/DetailScreen.js": `import React, { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
+import { Screen, Card, Btn, H2, Muted, Row, Badge, Empty, Avatar, ListItem, confirmDialog } from '../ui/kit.js';
+import { db } from '../db/index.js';
+import { useNav } from '../nav.js';
+import { META } from '../meta.js';
+import { theme } from '../theme.js';
+
+function useTick() {
+  const [, set] = useState(0);
+  useEffect(() => db.subscribe(() => set(n => n + 1)), []);
+}
+const metaOf = name => META.find(m => m.name === name);
+const titleOf = (m, r) => String((r && r[m.titleField]) == null ? (r && r.id) || '' : r[m.titleField]);
+
+// Detailansicht fuer JEDEN Eintrag: alle Felder, aufgeloeste Verweise (antippbar), verknuepfte Eintraege, Bearbeiten/Loeschen.
+export default function DetailScreen() {
+  useTick();
+  const nav = useNav();
+  const { entity, id } = nav.params || {};
+  const m = metaOf(entity);
+  const rec = m && db.isReady ? db.collection(entity).get(id) : null;
+  const [err, setErr] = useState('');
+  if (!m || !rec) {
+    return <Screen title="Eintrag"><Empty text="Dieser Eintrag existiert nicht mehr." action={<Btn label="Zurueck" onPress={nav.back} />} /></Screen>;
+  }
+  const children = META.flatMap(c => c.fields.filter(f => f.type === 'ref' && f.to === entity).map(f => ({ c, f })))
+    .map(({ c, f }) => ({ c, f, rows: db.collection(c.name).list({ where: { [f.name]: id } }) }));
+  const remove = () => confirmDialog('Eintrag loeschen?', async () => {
+    try { await db.collection(entity).remove(id); nav.back(); } catch (e) { setErr(String((e && e.message) || e)); }
+  });
+  return (
+    <Screen title={titleOf(m, rec)} subtitle={m.label}>
+      <Row style={{ marginBottom: 8 }}>
+        <Btn small kind="ghost" label="\u2190 Zurueck" onPress={nav.back} />
+        <Btn small label="Bearbeiten" onPress={() => nav.go(m.screen, { edit: id })} />
+        <Btn small kind="danger" label="Loeschen" onPress={remove} />
+      </Row>
+      {err ? <Text style={{ color: theme.danger, marginBottom: 8 }}>{err}</Text> : null}
+      <Card>
+        {m.fields.map(f => {
+          const v = rec[f.name];
+          if (v == null || v === '') return null;
+          let shown = <Text style={{ color: theme.text }}>{typeof v === 'boolean' ? (v ? 'Ja' : 'Nein') : typeof v === 'object' ? JSON.stringify(v) : String(v)}</Text>;
+          if (f.type === 'enum') shown = <Badge label={String(v)} />;
+          if (f.type === 'ref') {
+            const tm = metaOf(f.to); const tr = tm && db.collection(f.to).get(v);
+            shown = tr ? <Text onPress={() => nav.go('Detail', { entity: f.to, id: v })} style={{ color: theme.primary, fontWeight: '700' }}>{tm.emoji} {titleOf(tm, tr)} \u203A</Text> : <Muted>(gel\xF6scht)</Muted>;
+          }
+          return <View key={f.name} style={{ marginBottom: 10 }}><Muted>{f.name}</Muted>{shown}</View>;
+        })}
+        <Muted>Angelegt: {String(rec.createdAt || '').slice(0, 10)}</Muted>
+      </Card>
+      {children.map(({ c, f, rows }) => (
+        <View key={c.name + f.name}>
+          <H2>{c.emoji} {c.label} ({rows.length})</H2>
+          {rows.length === 0 ? <Muted>Keine verkn\xFCpften Eintr\xE4ge.</Muted> : null}
+          {rows.map(r => (
+            <ListItem key={r.id} icon={c.emoji} title={titleOf(c, r)} onPress={() => nav.go('Detail', { entity: c.name, id: r.id })} />
+          ))}
+          <Btn small kind="ghost" label={\`+ \${c.label} dazu\`} onPress={() => nav.go(c.screen, { add: { [f.name]: id } })} />
+        </View>
+      ))}
+    </Screen>
+  );
+}
+`,
+      "src/screens/DashboardScreen.js": `import React, { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
+import { Screen, Card, Btn, H2, Muted, Row, SearchBar, Empty, Stat, ProgressBar, ListItem, Avatar, FadeIn, Skeleton } from '../ui/kit.js';
+import { db } from '../db/index.js';
+import { useNav } from '../nav.js';
+import { META } from '../meta.js';
+import { theme } from '../theme.js';
+
+const titleOf = (m, r) => String(r[m.titleField] == null ? r.id : r[m.titleField]);
+
+// Startseite: Kennzahlen, Verteilungen, letzte Eintraege, globale Suche - alles antippbar und mit den Screens verdrahtet.
+export default function DashboardScreen() {
+  const [, set] = useState(0);
+  useEffect(() => db.subscribe(() => set(n => n + 1)), []);
+  const nav = useNav();
+  const [q, setQ] = useState('');
+  if (!db.isReady) return <Screen title="\xDCbersicht"><Skeleton /></Screen>;
+  const data = META.map(m => ({ m, rows: db.collection(m.name).list({ orderBy: [['createdAt', 'desc']] }) }));
+  const needle = q.trim().toLowerCase();
+  const hits = needle
+    ? data.flatMap(({ m, rows }) => rows.filter(r => m.fields.some(f => (f.type === 'string' || f.type === 'enum') && String(r[f.name] || '').toLowerCase().includes(needle))).slice(0, 6).map(r => ({ m, r }))).slice(0, 20)
+    : [];
+  return (
+    <Screen title="\xDCbersicht">
+      <SearchBar placeholder="Alles durchsuchen \u2026" value={q} onChangeText={setQ} />
+      {needle ? (
+        <View>
+          <H2>Treffer ({hits.length})</H2>
+          {hits.length === 0 ? <Muted>Nichts gefunden.</Muted> : null}
+          {hits.map(({ m, r }) => <ListItem key={m.name + r.id} icon={m.emoji} title={titleOf(m, r)} subtitle={m.label} onPress={() => nav.go('Detail', { entity: m.name, id: r.id })} />)}
+        </View>
+      ) : (
+        <View>
+          <Card style={{ backgroundColor: theme.primary, borderColor: theme.primary }}>
+            <Text style={{ color: '#ffffffcc', fontSize: 13 }}>Alles auf einen Blick</Text>
+            <Text style={{ color: '#fff', fontSize: 34, fontWeight: '800', letterSpacing: -1 }}>{data.reduce((n, d) => n + d.rows.length, 0)} Eintraege</Text>
+            <Text style={{ color: '#ffffffcc' }}>in {data.length} Bereichen, alles lokal auf deinem Geraet</Text>
+          </Card>
+          <Row>
+            {data.map(({ m, rows }) => <FadeIn key={m.name} style={{ width: '50%' }}><Stat icon={m.emoji} label={m.label} value={rows.length} onPress={() => nav.go(m.screen)} /></FadeIn>)}
+          </Row>
+          {data.map(({ m, rows }) => {
+            const nums = m.fields.filter(f => f.type === 'number');
+            const enums = m.fields.filter(f => f.type === 'enum').slice(0, 1);
+            return (
+              <View key={m.name}>
+                <H2>{m.emoji} {m.label}</H2>
+                {nums.slice(0, 2).map(f => {
+                  const vals = rows.map(r => Number(r[f.name])).filter(Number.isFinite);
+                  if (!vals.length) return null;
+                  const sum = vals.reduce((a, b) => a + b, 0);
+                  return <Muted key={f.name}>{f.name}: Summe {Math.round(sum * 100) / 100} \xB7 \xD8 {Math.round(sum / vals.length * 100) / 100}</Muted>;
+                })}
+                {enums.map(f => {
+                  const cnt = {};
+                  rows.forEach(r => { if (r[f.name]) cnt[r[f.name]] = (cnt[r[f.name]] || 0) + 1; });
+                  const max = Math.max(1, ...Object.values(cnt));
+                  return Object.entries(cnt).map(([k, n]) => (
+                    <View key={k} style={{ marginVertical: 3 }}>
+                      <Muted>{f.name}: {k} ({n})</Muted>
+                      <ProgressBar value={n} max={max} />
+                    </View>
+                  ));
+                })}
+                {rows.slice(0, 3).map(r => <ListItem key={r.id} icon={m.emoji} title={titleOf(m, r)} onPress={() => nav.go('Detail', { entity: m.name, id: r.id })} />)}
+                {rows.length === 0 ? <Empty icon={m.emoji} text={\`Noch keine \${m.label}.\`} /> : null}
+                <Row><Btn small kind="ghost" label={\`+ Neu\`} onPress={() => nav.go(m.screen, { add: {} })} /><Btn small kind="ghost" label="Alle \u203A" onPress={() => nav.go(m.screen)} /></Row>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </Screen>
+  );
+}
+`,
       ".github/workflows/build.yml": `name: Build
 
-# Baut bei jedem Push: Web-ZIP, Android-APK und Quellcode-ZIP und legt alles als GitHub-Release ab
-# (Repo -> Releases, Dateien: *-web.zip, *.apk, *-source.zip).
+# Baut bei jedem Push: Web-ZIP, Android (APK + AAB), Windows (.exe Installer + portable .exe), macOS (.dmg),
+# Linux (.AppImage) und Quellcode-ZIP und legt alles als GitHub-Release ab (Repo -> Releases).
 on:
   push:
     branches: [main, master]
@@ -394,6 +778,48 @@ jobs:
             out/*.apk
             out/*.aab
 
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            flag: --win
+          - os: ubuntu-latest
+            flag: --linux
+          - os: macos-latest
+            flag: --mac
+    runs-on: \${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx expo export --platform web --output-dir web-dist
+      - name: Desktop-Huelle (Electron) vorbereiten
+        run: |
+          rm -rf desktop/app
+          cp -r web-dist desktop/app
+          cd desktop && npm install
+      - name: Installer bauen
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder \${{ matrix.flag }} --publish never
+      - name: Dateien einsammeln
+        run: |
+          mkdir -p out
+          cp desktop/dist/*.exe desktop/dist/*.dmg desktop/dist/*.AppImage out/ 2>/dev/null || true
+          ls out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-\${{ matrix.os }}
+          path: out/*
+
   source:
     runs-on: ubuntu-latest
     steps:
@@ -409,7 +835,7 @@ jobs:
           path: out/*.zip
 
   release:
-    needs: [web, android, source]
+    needs: [web, android, desktop, source]
     if: \${{ always() && needs.web.result == 'success' && needs.source.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
@@ -423,9 +849,9 @@ jobs:
           REPO: \${{ github.repository }}
         run: |
           TAG="build-\${{ github.run_number }}"
-          gh release create "$TAG" out/* --repo "$REPO" --title "Build \${{ github.run_number }}" --notes "Automatisch gebaut: Web-ZIP, Android-APK (falls der Android-Build lief) und Quellcode."
+          gh release create "$TAG" out/* --repo "$REPO" --title "Build \${{ github.run_number }}" --notes "Automatisch gebaut: Android (APK, AAB), Windows (.exe), macOS (.dmg), Linux, Web-ZIP und Quellcode. Was fehlt, ist im Build-Protokoll erklaert."
 `,
-      "scripts/pack.mjs": "#!/usr/bin/env node\n// Packt diese App lokal in ZIP / Web-Dateien / APK. Aufruf:  node scripts/pack.mjs [zip|web|apk|all]\n// Ergebnis liegt im Ordner release/. Braucht nur Node (fuer apk zusaetzlich Android SDK + Java 17).\nimport fs from 'node:fs';\nimport path from 'node:path';\nimport zlib from 'node:zlib';\nimport { spawnSync } from 'node:child_process';\nimport { fileURLToPath } from 'node:url';\n\nconst root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');\nconst pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));\nconst slug = pkg.name || 'app';\nconst outDir = path.join(root, 'release');\nconst what = (process.argv[2] || 'all').toLowerCase();\nconst SKIP = new Set(['node_modules', '.git', 'release', 'web-dist', 'dist', 'android', 'ios', 'out', '.expo']);\n\nconst T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();\nconst crc32 = b => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };\n\nfunction walk(dir, base = dir, skipTop = true) {\n  const out = [];\n  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {\n    if (skipTop && dir === base && SKIP.has(e.name)) continue;\n    const p = path.join(dir, e.name);\n    if (e.isDirectory()) out.push(...walk(p, base, skipTop));\n    else if (e.isFile()) out.push({ rel: path.relative(base, p).split(path.sep).join('/'), abs: p });\n  }\n  return out;\n}\n\nfunction writeZip(zipPath, entries) {\n  const parts = [], central = [];\n  let offset = 0;\n  for (const e of entries) {\n    const data = fs.readFileSync(e.abs);\n    const name = Buffer.from(e.rel, 'utf8');\n    const comp = zlib.deflateRawSync(data);\n    const useDef = comp.length < data.length;\n    const body = useDef ? comp : data;\n    const crc = crc32(data);\n    const h = Buffer.alloc(30);\n    h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x0800, 6); h.writeUInt16LE(useDef ? 8 : 0, 8);\n    h.writeUInt16LE(0, 10); h.writeUInt16LE(0x21, 12); h.writeUInt32LE(crc, 14); h.writeUInt32LE(body.length, 18); h.writeUInt32LE(data.length, 22); h.writeUInt16LE(name.length, 26);\n    parts.push(h, name, body);\n    const c = Buffer.alloc(46);\n    c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x0800, 8); c.writeUInt16LE(useDef ? 8 : 0, 10);\n    c.writeUInt16LE(0, 12); c.writeUInt16LE(0x21, 14); c.writeUInt32LE(crc, 16); c.writeUInt32LE(body.length, 20); c.writeUInt32LE(data.length, 24); c.writeUInt16LE(name.length, 28); c.writeUInt32LE(offset, 42);\n    central.push(c, name);\n    offset += h.length + name.length + body.length;\n  }\n  const cd = Buffer.concat(central);\n  const end = Buffer.alloc(22);\n  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(offset, 16);\n  fs.writeFileSync(zipPath, Buffer.concat([...parts, cd, end]));\n}\n\nfunction run(cmd, args, cwd = root) {\n  console.log('> ' + [cmd, ...args].join(' '));\n  const r = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });\n  if (r.status !== 0) throw new Error(`${cmd} ist fehlgeschlagen (Code ${r.status})`);\n}\n\nconst jobs = {\n  zip() {\n    const files = walk(root);\n    const z = path.join(outDir, `${slug}-source.zip`);\n    writeZip(z, files);\n    return `${z} (${files.length} Dateien)`;\n  },\n  web() {\n    if (!fs.existsSync(path.join(root, 'node_modules'))) run('npm', ['install']);\n    const dist = path.join(outDir, 'web');\n    fs.rmSync(dist, { recursive: true, force: true });\n    run('npx', ['expo', 'export', '--platform', 'web', '--output-dir', dist]);\n    const files = walk(dist, dist, false);\n    const z = path.join(outDir, `${slug}-web.zip`);\n    writeZip(z, files);\n    return `${z} (${files.length} Dateien) \u2013 Inhalt in das Hauptverzeichnis eines Webservers legen`;\n  },\n  apk() {\n    if (!process.env.ANDROID_HOME && !process.env.ANDROID_SDK_ROOT) {\n      throw new Error('Android SDK nicht gefunden (ANDROID_HOME). Alternativ: Projekt auf GitHub hochladen \u2013 der Workflow baut die APK automatisch.');\n    }\n    if (!fs.existsSync(path.join(root, 'node_modules'))) run('npm', ['install']);\n    run('npx', ['expo', 'prebuild', '--platform', 'android', '--no-install']);\n    run(process.platform === 'win32' ? 'gradlew.bat' : './gradlew', ['assembleRelease', '--no-daemon'], path.join(root, 'android'));\n    const dir = path.join(root, 'android/app/build/outputs/apk/release');\n    const apk = fs.readdirSync(dir).find(f => f.endsWith('.apk'));\n    if (!apk) throw new Error('Keine APK gefunden in ' + dir);\n    const dst = path.join(outDir, `${slug}.apk`);\n    fs.copyFileSync(path.join(dir, apk), dst);\n    return dst;\n  },\n};\n\nfs.mkdirSync(outDir, { recursive: true });\nconst wanted = what === 'all' ? ['zip', 'web', 'apk'] : [what];\nlet failed = 0;\nfor (const w of wanted) {\n  if (!jobs[w]) { console.error('Unbekannt: ' + w + ' (zip | web | apk | all)'); process.exit(2); }\n  try { console.log('\u2713 ' + w + ': ' + jobs[w]()); }\n  catch (e) { failed++; console.error('\u2717 ' + w + ': ' + e.message); if (what !== 'all') process.exit(1); }\n}\nif (failed && what === 'all') console.error('\\nHinweis: bei \"all\" werden fehlgeschlagene Teile uebersprungen, der Rest liegt in release/.');\n"
+      "scripts/pack.mjs": "#!/usr/bin/env node\n// Packt diese App lokal in ZIP / Web-Dateien / APK / AAB / Desktop-Installer. Aufruf:  node scripts/pack.mjs [zip|web|apk|aab|desktop|all]\n// Ergebnis liegt im Ordner release/. Braucht nur Node (fuer apk/aab zusaetzlich Android SDK + Java 17, fuer desktop wird electron-builder geladen).\nimport fs from 'node:fs';\nimport path from 'node:path';\nimport zlib from 'node:zlib';\nimport { spawnSync } from 'node:child_process';\nimport { fileURLToPath } from 'node:url';\n\nconst root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');\nconst pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));\nconst slug = pkg.name || 'app';\nconst outDir = path.join(root, 'release');\nconst what = (process.argv[2] || 'all').toLowerCase();\nconst SKIP = new Set(['node_modules', '.git', 'release', 'web-dist', 'dist', 'android', 'ios', 'out', '.expo']);\nconst SKIP_DEEP = ['desktop/app', 'desktop/dist', 'desktop/node_modules'];\n\nconst T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();\nconst crc32 = b => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };\n\nfunction walk(dir, base = dir, skipTop = true) {\n  const out = [];\n  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {\n    if (skipTop && dir === base && SKIP.has(e.name)) continue;\n    const p = path.join(dir, e.name);\n    if (e.isDirectory()) out.push(...walk(p, base, skipTop));\n    else if (e.isFile() && !SKIP_DEEP.some(d => path.relative(base, p).split(path.sep).join('/').startsWith(d + '/'))) out.push({ rel: path.relative(base, p).split(path.sep).join('/'), abs: p });\n  }\n  return out;\n}\n\nfunction writeZip(zipPath, entries) {\n  const parts = [], central = [];\n  let offset = 0;\n  for (const e of entries) {\n    const data = fs.readFileSync(e.abs);\n    const name = Buffer.from(e.rel, 'utf8');\n    const comp = zlib.deflateRawSync(data);\n    const useDef = comp.length < data.length;\n    const body = useDef ? comp : data;\n    const crc = crc32(data);\n    const h = Buffer.alloc(30);\n    h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x0800, 6); h.writeUInt16LE(useDef ? 8 : 0, 8);\n    h.writeUInt16LE(0, 10); h.writeUInt16LE(0x21, 12); h.writeUInt32LE(crc, 14); h.writeUInt32LE(body.length, 18); h.writeUInt32LE(data.length, 22); h.writeUInt16LE(name.length, 26);\n    parts.push(h, name, body);\n    const c = Buffer.alloc(46);\n    c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x0800, 8); c.writeUInt16LE(useDef ? 8 : 0, 10);\n    c.writeUInt16LE(0, 12); c.writeUInt16LE(0x21, 14); c.writeUInt32LE(crc, 16); c.writeUInt32LE(body.length, 20); c.writeUInt32LE(data.length, 24); c.writeUInt16LE(name.length, 28); c.writeUInt32LE(offset, 42);\n    central.push(c, name);\n    offset += h.length + name.length + body.length;\n  }\n  const cd = Buffer.concat(central);\n  const end = Buffer.alloc(22);\n  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(offset, 16);\n  fs.writeFileSync(zipPath, Buffer.concat([...parts, cd, end]));\n}\n\nfunction run(cmd, args, cwd = root) {\n  console.log('> ' + [cmd, ...args].join(' '));\n  const r = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });\n  if (r.status !== 0) throw new Error(`${cmd} ist fehlgeschlagen (Code ${r.status})`);\n}\n\nfunction androidBuild(task, ext, outSub) {\n  if (!process.env.ANDROID_HOME && !process.env.ANDROID_SDK_ROOT) {\n    throw new Error('Android SDK nicht gefunden (ANDROID_HOME). Alternativ: Projekt auf GitHub hochladen \u2013 der Workflow baut APK und AAB automatisch.');\n  }\n  if (!fs.existsSync(path.join(root, 'node_modules'))) run('npm', ['install']);\n  run('npx', ['expo', 'prebuild', '--platform', 'android', '--no-install']);\n  run(process.platform === 'win32' ? 'gradlew.bat' : './gradlew', [task, '--no-daemon'], path.join(root, 'android'));\n  const dir = path.join(root, 'android/app/build/outputs', outSub);\n  const f = fs.readdirSync(dir).find(x => x.endsWith('.' + ext));\n  if (!f) throw new Error('Keine .' + ext + ' gefunden in ' + dir);\n  const dst = path.join(outDir, `${slug}.${ext}`);\n  fs.copyFileSync(path.join(dir, f), dst);\n  return dst;\n}\n\nconst jobs = {\n  zip() {\n    const files = walk(root);\n    const z = path.join(outDir, `${slug}-source.zip`);\n    writeZip(z, files);\n    return `${z} (${files.length} Dateien)`;\n  },\n  web() {\n    if (!fs.existsSync(path.join(root, 'node_modules'))) run('npm', ['install']);\n    const dist = path.join(outDir, 'web');\n    fs.rmSync(dist, { recursive: true, force: true });\n    run('npx', ['expo', 'export', '--platform', 'web', '--output-dir', dist]);\n    const files = walk(dist, dist, false);\n    const z = path.join(outDir, `${slug}-web.zip`);\n    writeZip(z, files);\n    return `${z} (${files.length} Dateien) \u2013 Inhalt in das Hauptverzeichnis eines Webservers legen`;\n  },\n  apk() { return androidBuild('assembleRelease', 'apk', 'apk/release'); },\n  aab() { return androidBuild('bundleRelease', 'aab', 'bundle/release'); },\n  desktop() {\n    // Baut den Installer fuer das System, auf dem das Skript laeuft (Windows: .exe, macOS: .dmg, Linux: .AppImage/.deb)\n    if (!fs.existsSync(path.join(root, 'node_modules'))) run('npm', ['install']);\n    const app = path.join(root, 'desktop/app');\n    fs.rmSync(app, { recursive: true, force: true });\n    run('npx', ['expo', 'export', '--platform', 'web', '--output-dir', app]);\n    run('npm', ['install'], path.join(root, 'desktop'));\n    const flag = process.platform === 'win32' ? '--win' : process.platform === 'darwin' ? '--mac' : '--linux';\n    run('npx', ['electron-builder', flag, '--publish', 'never'], path.join(root, 'desktop'));\n    const dist = path.join(root, 'desktop/dist');\n    const made = fs.readdirSync(dist).filter(f => /\\.(exe|dmg|AppImage|deb)$/.test(f));\n    if (!made.length) throw new Error('Kein Installer gefunden in ' + dist);\n    for (const f of made) fs.copyFileSync(path.join(dist, f), path.join(outDir, f));\n    return made.map(f => path.join(outDir, f)).join(', ');\n  },\n};\n\nfs.mkdirSync(outDir, { recursive: true });\nconst wanted = what === 'all' ? ['zip', 'web', 'apk', 'aab', 'desktop'] : [what];\nlet failed = 0;\nfor (const w of wanted) {\n  if (!jobs[w]) { console.error('Unbekannt: ' + w + ' (zip | web | apk | aab | desktop | all)'); process.exit(2); }\n  try { console.log('\u2713 ' + w + ': ' + jobs[w]()); }\n  catch (e) { failed++; console.error('\u2717 ' + w + ': ' + e.message); if (what !== 'all') process.exit(1); }\n}\nif (failed && what === 'all') console.error('\\nHinweis: bei \"all\" werden fehlgeschlagene Teile uebersprungen, der Rest liegt in release/.');\n"
     };
   }
 });
@@ -24110,6 +24536,7 @@ var PROVIDERS = {
 var MODELS = [
   {
     key: "gemini",
+    vision: true,
     label: "Gemini Flash Lite",
     provider: "google",
     free: true,
@@ -24177,6 +24604,7 @@ var MODELS = [
   },
   {
     key: "gpt54mini",
+    vision: true,
     label: "GPT-5.4 Mini",
     provider: "openai",
     free: false,
@@ -24188,6 +24616,7 @@ var MODELS = [
   },
   {
     key: "gpt55",
+    vision: true,
     label: "GPT-5.5",
     provider: "openai",
     free: false,
@@ -24265,7 +24694,7 @@ function classify(status, message) {
   if (status >= 500) return "server";
   return "bad";
 }
-async function callOnce({ provider, id, key, system, user, maxTokens, timeoutMs = 24e4, fetchImpl }) {
+async function callOnce({ provider, id, key, system, user, maxTokens, images, timeoutMs = 24e4, fetchImpl }) {
   const P = PROVIDERS[provider];
   if (!P) throw new RotError("bad", "Unbekannter Anbieter: " + provider);
   const f = fetchImpl || fetch;
@@ -24281,7 +24710,7 @@ async function callOnce({ provider, id, key, system, user, maxTokens, timeoutMs 
         [P.tokenField]: maxTokens,
         messages: [
           { role: "system", content: system },
-          { role: "user", content: user }
+          { role: "user", content: images && images.length ? [{ type: "text", text: user }, ...images.map((u2) => ({ type: "image_url", image_url: { url: u2 } }))] : user }
         ]
       })
     }), timeoutMs, (t) => timer = t);
@@ -24385,6 +24814,7 @@ function normalizeSettings(raw) {
 }
 var REASONS = {
   off: "ausgeschaltet",
+  novision: "kann keine Bilder lesen",
   nokey: "kein Key",
   auth: "Key abgelehnt",
   paid: "Bezahl-Fallback aus",
@@ -24533,6 +24963,7 @@ var Rotator = class {
     if (!key) return "nokey";
     if (this.authBad[spec.provider] === key) return "auth";
     if (!ctx.override && !spec.free && !(ctx.strategy === "best" || s.allowPaid)) return "paid";
+    if (ctx.vision && !spec.vision) return "novision";
     if (!this.ids(spec).length) return "ids";
     const h = this.health[spec.key];
     if (!ctx.override && h && h.until > this.now()) return "cooldown";
@@ -24545,12 +24976,12 @@ var Rotator = class {
     if (promptTok > 5e4) return "long-session";
     return TASK_STRATEGY[task] || TASK_STRATEGY.default;
   }
-  plan({ task = "default", promptTok = 0, wanted = 4e3, avoid = [], strategy } = {}) {
+  plan({ task = "default", promptTok = 0, wanted = 4e3, avoid = [], strategy, vision = false } = {}) {
     this.rollDay();
     const s = this.settings();
     if (s.override) {
       const spec = modelByKey(s.override);
-      const why = this.blocker(spec, s, { override: true, strategy: "override", promptTok, wanted });
+      const why = this.blocker(spec, s, { override: true, strategy: "override", promptTok, wanted, vision });
       if (why) return { strategy: "override", list: [], skipped: { [spec.key]: why } };
       return { strategy: "override", list: [{ spec, ids: this.ids(spec), maxTokens: this.budget(spec, promptTok, wanted) }], skipped: {} };
     }
@@ -24567,7 +24998,7 @@ var Rotator = class {
     const skipped = {};
     for (const k of ordered) {
       const spec = modelByKey(k);
-      const why = this.blocker(spec, s, { strategy: strat, promptTok, wanted });
+      const why = this.blocker(spec, s, { strategy: strat, promptTok, wanted, vision });
       if (why) {
         skipped[k] = why;
         continue;
@@ -24630,9 +25061,9 @@ var Rotator = class {
     this.emit();
     return n;
   }
-  async _run({ task = "default", system, user, maxTokens = 4e3, avoid = [], strategy, onEvent } = {}) {
+  async _run({ task = "default", system, user, maxTokens = 4e3, avoid = [], strategy, onEvent, images } = {}) {
     const promptTok = estTokens(system) + estTokens(user);
-    const { list: list2, skipped, strategy: used } = this.plan({ task, promptTok, wanted: maxTokens, avoid, strategy });
+    const { list: list2, skipped, strategy: used } = this.plan({ task, promptTok, wanted: maxTokens, avoid, strategy, vision: !!(images && images.length) });
     if (!list2.length) throw new Error(this.explainEmpty(skipped));
     const s = this.settings();
     const errors = [];
@@ -24647,7 +25078,7 @@ var Rotator = class {
           if (onEvent) onEvent({ type: "try", model: spec.key, label: spec.label, id, strategy: used });
           let res;
           try {
-            res = await this.call({ provider: spec.provider, id, key, system, user, maxTokens: c.maxTokens });
+            res = await this.call({ provider: spec.provider, id, key, system, user, maxTokens: c.maxTokens, images });
           } catch (e) {
             if ((e.kind || "network") !== "network") netOnly = false;
             const next = this.fail(spec, id, e, key, i < c.ids.length - 1);
@@ -24882,7 +25313,7 @@ function slugify(name) {
   return s.slice(0, 20);
 }
 var list = (arr) => arr && arr.length ? arr.map((x) => "- " + x).join("\n") : "- (keine Angaben)";
-var GITIGNORE = ["node_modules/", ".expo/", "dist/", "web-dist/", "release/", "out/", "web-build/", "/ios", "/android", ".DS_Store", "*.log", ""].join("\n");
+var GITIGNORE = ["node_modules/", ".expo/", "dist/", "web-dist/", "release/", "out/", "web-build/", "/ios", "/android", "desktop/app/", "desktop/dist/", "desktop/node_modules/", ".DS_Store", "*.log", ""].join("\n");
 var INDEX_JS = [
   "import { registerRootComponent } from 'expo';",
   "import App from './App';",
@@ -24932,12 +25363,12 @@ function buildScaffold({ name, analysis }) {
     '`w` dr\xFCcken = Web im Browser. QR-Code mit der App \u201EExpo Go" scannen = Android und iOS.',
     "",
     "## Als APK, ZIP und Web-Dateien packen",
-    "**Ohne eigenen Server (GitHub baut es f\xFCr dich):** Repo anlegen, alle Dateien hochladen (Branch `main`). Nach ein paar Minuten liegen unter *Releases* `*-web.zip`, `*.apk` und `*-source.zip`.",
+    "**Ohne eigenen Server (GitHub baut es f\xFCr dich):** Repo anlegen, alle Dateien hochladen (Branch `main`). Nach ca. 15\u201325 Minuten liegen unter *Releases*: Android `*.apk` + `*.aab`, Windows `*-windows-setup.exe` + `*-windows-portable.exe`, macOS `*-mac.dmg`, Linux `*-linux.AppImage`, `*-web.zip` und `*-source.zip`.",
     "",
-    "**Lokal:** `node scripts/pack.mjs zip` (Quellcode-ZIP), `node scripts/pack.mjs web` (Web-Export + ZIP), `node scripts/pack.mjs apk` (braucht Android SDK + Java 17), `node scripts/pack.mjs all`. Ergebnis im Ordner `release/`.",
+    "**Lokal:** `node scripts/pack.mjs zip` (Quellcode-ZIP), `node scripts/pack.mjs web` (Web-Export + ZIP), `node scripts/pack.mjs apk` oder `aab` (braucht Android SDK + Java 17), `node scripts/pack.mjs desktop` (Installer f\xFCr das System, auf dem du gerade arbeitest: auf Windows eine .exe), `node scripts/pack.mjs all`. Ergebnis im Ordner `release/`.",
     "",
     "Das Web-ZIP geh\xF6rt auf einen Webserver (z. B. Netlify Drop, GitHub Pages, eigener Server) in das Hauptverzeichnis. Direkt per Doppelklick \xF6ffnen funktioniert nicht.",
-    "iOS-App-Store und Play-Store brauchen eigene Developer-Konten.",
+    "Windows zeigt bei nicht signierten Programmen \u201EDer Computer wurde gesch\xFCtzt\u201C: *Weitere Informationen \u2192 Trotzdem ausf\xFChren*. macOS: Rechtsklick \u2192 \xD6ffnen. iOS-App-Store, Play-Store und Signierung brauchen eigene Developer-Konten.",
     "",
     "Hinweise zum Nachbau und Copyright: siehe `CLONE-NOTES.md`.",
     ""
@@ -24963,7 +25394,32 @@ function buildScaffold({ name, analysis }) {
     "Keine Rechtsberatung: Vor einer Ver\xF6ffentlichung auf Patente, Marken\xE4hnlichkeit und Store-Richtlinien pr\xFCfen.",
     ""
   ].join("\n");
+  const desktopPkg = {
+    name: slug + "-desktop",
+    productName: name,
+    version: "1.0.0",
+    description: name + " \u2013 Desktop-Version",
+    main: "main.js",
+    homepage: "https://example.com",
+    private: true,
+    author: { name, email: "app@example.com" },
+    devDependencies: { electron: "^33.2.0", "electron-builder": "^25.1.8" },
+    build: {
+      appId: pkg + ".desktop",
+      productName: name,
+      directories: { output: "dist" },
+      publish: [{ provider: "generic", url: "https://example.com/updates" }],
+      // nur damit electron-builder keine Update-Quelle sucht; es wird nichts veroeffentlicht
+      files: ["main.js", "package.json", "app/**/*"],
+      win: { target: ["nsis", "portable"] },
+      nsis: { oneClick: false, allowToChangeInstallationDirectory: true, artifactName: slug + "-windows-setup.${ext}" },
+      portable: { artifactName: slug + "-windows-portable.${ext}" },
+      mac: { target: ["dmg"], identity: null, category: "public.app-category.productivity", artifactName: slug + "-mac.${ext}" },
+      linux: { target: ["AppImage"], category: "Utility", artifactName: slug + "-linux.${ext}" }
+    }
+  };
   return [
+    { path: "desktop/package.json", content: JSON.stringify(desktopPkg, null, 2) + "\n" },
     { path: "package.json", content: JSON.stringify(packageJson, null, 2) + "\n" },
     { path: "app.json", content: JSON.stringify(appJson, null, 2) + "\n" },
     { path: "index.js", content: INDEX_JS },
@@ -25621,7 +26077,7 @@ function createDb({ schema, seed, storage, key = "app_db", now = () => Date.now(
 }
 
 // src/blueprint.js
-var LIMITS = { entities: 6, fields: 10, screens: 6, enumValues: 8 };
+var LIMITS = { entities: 10, fields: 12, screens: 10, enumValues: 8 };
 var FIELD_TYPES2 = ["string", "number", "boolean", "date", "enum", "ref", "json"];
 var AUTO2 = ["id", "createdAt", "updatedAt"];
 var RESERVED_WORDS = /* @__PURE__ */ new Set(["constructor", "prototype", "default", "class", "function", "new", "delete", "import", "export", "var", "let", "const", "return"]);
@@ -25783,7 +26239,7 @@ function normalizeBlueprint(raw, appName) {
     e.extras = pascal(e.name) + "Extras";
   }
   const screens = [];
-  const usedNames = /* @__PURE__ */ new Set(["DataScreen"]);
+  const usedNames = /* @__PURE__ */ new Set(["DataScreen", "DashboardScreen", "DetailScreen", "DoctorScreen", "SettingsScreen"]);
   for (const s of Array.isArray(r.screens) ? r.screens : Array.isArray(r.bildschirme) && r.bildschirme.every((x) => typeof x === "object") ? r.bildschirme : []) {
     if (!s || typeof s !== "object" || screens.length >= LIMITS.screens) continue;
     let base = pascal(s.name || s.titel || "Screen").replace(/Screen$/, "") || "Main";
@@ -25834,9 +26290,29 @@ export const schema = ${J(bp.schema)};
 `;
 }
 function genTheme(bp) {
-  return `// Farben (eigene Palette, nicht vom Original uebernommen)
-export const theme = ${J(bp.palette)};
+  const p = bp.palette;
+  const DARK = { bg: "#0e1117", card: "#181c25", text: "#eef1f7", muted: "#9aa3b5", border: "#2a3040" };
+  const LIGHT = { bg: "#f5f6fa", card: "#ffffff", text: "#12151c", muted: "#5d6678", border: "#dde1ea" };
+  const dark = isDark(p) ? p : { ...p, ...DARK };
+  const light = isDark(p) ? { ...p, ...LIGHT } : p;
+  const accents = [.../* @__PURE__ */ new Set([p.primary, "#6366f1", "#ef4444", "#10b981", "#f59e0b", "#ec4899", "#0ea5e9"])].slice(0, 7);
+  return `// Farben: eigene Palette in Hell und Dunkel (nicht vom Original uebernommen). \`theme\` wird live umgeschaltet (Einstellungen).
+import { Appearance } from 'react-native';
+
+export const palettes = { dark: ${J(dark)}, light: ${J(light)} };
+export const ACCENTS = ${J(accents)};
+export const DEFAULT_MODE = ${q(isDark(p) ? "dark" : "light")};
+export const theme = { ...palettes[DEFAULT_MODE] };
 export const colors = theme;
+
+export function applyTheme({ mode = 'auto', accent = null } = {}) {
+  let m = mode;
+  if (m === 'auto') { let sys = null; try { sys = Appearance.getColorScheme(); } catch (e) { /* egal */ } m = sys === 'light' || sys === 'dark' ? sys : DEFAULT_MODE; }
+  Object.assign(theme, palettes[m] || palettes[DEFAULT_MODE]);
+  if (accent) theme.primary = accent;
+  return m;
+}
+export const isLightTheme = () => parseInt(String(theme.bg).slice(1, 3), 16) > 128;
 `;
 }
 function genServiceBase(e) {
@@ -25885,37 +26361,86 @@ function Root() {
 registerRootComponent(Root);
 `;
 }
+function genMetaJs(bp) {
+  const meta = bp.entities.map((e) => {
+    const sc = bp.screens.find((x) => x.entity === e.name);
+    return { name: e.name, label: e.label, emoji: e.emoji, titleField: e.titleField, screen: sc ? sc.name : "DashboardScreen", fields: e.fields.filter((f) => f.type !== "json").map((f) => ({ name: f.name, type: f.type, to: f.to })) };
+  });
+  const app = { name: bp.name, version: "1.0.0", emoji: bp.entities[0] && bp.entities[0].emoji || "\u{1F4F1}", features: bp.screens.slice(0, 5).map((x) => ({ emoji: x.emoji, title: x.title, text: x.purpose || "" })) };
+  return `// Beschreibung der Datenstruktur fuer Dashboard, Detailansicht und Suche (automatisch erzeugt)
+export const META = ${J(meta)};
+export const APP = ${J(app)};
+`;
+}
 function genAppJs(bp) {
-  const imports = [...bp.screens.map((s) => `import ${s.name} from './src/screens/${s.name}.js';`), `import DataScreen from './src/screens/DataScreen.js';`].join("\n");
-  const tabs = [...bp.screens.map((s) => `  { key: ${q(s.name)}, title: ${q(s.title)}, emoji: ${q(s.emoji)}, Component: ${s.name} },`), `  { key: 'DataScreen', title: 'Daten', emoji: '\u{1F4BE}', Component: DataScreen },`].join("\n");
-  return `import React, { useState } from 'react';
+  const imports = [...bp.screens.map((s) => `import ${s.name} from './src/screens/${s.name}.js';`), `import DashboardScreen from './src/screens/DashboardScreen.js';`, `import DetailScreen from './src/screens/DetailScreen.js';`, `import DoctorScreen from './src/screens/DoctorScreen.js';`, `import SettingsScreen from './src/screens/SettingsScreen.js';`, `import DataScreen from './src/screens/DataScreen.js';`].join("\n");
+  const tabs = [`  { key: 'DashboardScreen', title: 'Start', emoji: '\u{1F3E0}', Component: DashboardScreen },`, ...bp.screens.map((s) => `  { key: ${q(s.name)}, title: ${q(s.title)}, emoji: ${q(s.emoji)}, Component: ${s.name} },`), `  { key: 'DataScreen', title: 'Daten', emoji: '\u{1F4BE}', Component: DataScreen },`, `  { key: 'DoctorScreen', title: 'Gesund', emoji: '\u{1FA7A}', Component: DoctorScreen },`, `  { key: 'SettingsScreen', title: 'Einstellungen', emoji: '\u2699\uFE0F', Component: SettingsScreen },`].join("\n");
+  return `import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { theme } from './src/theme.js';
+import { theme, isLightTheme } from './src/theme.js';
+import { useSettings, initSettings, updateSettings } from './src/settings.js';
+import { ToastHost } from './src/toast.js';
+import { startActivity } from './src/activity.js';
+import Welcome from './src/welcome.js';
+import { NavProvider } from './src/nav.js';
+import { SafeBoundary, startup } from './src/selfdoctor.js';
 ${imports}
 
 const TABS = [
 ${tabs}
 ];
+const HIDDEN = [{ key: 'Detail', Component: DetailScreen }];
+const BAR = 4; // so viele Tabs direkt in der Leiste, der Rest unter "Mehr"
 
 export default function App() {
-  const [active, setActive] = useState(TABS[0].key);
-  const tab = TABS.find(t => t.key === active) || TABS[0];
-  const Current = tab.Component;
+  const [nav, setNav] = useState({ key: TABS[0].key, params: {}, stack: [] });
+  const [more, setMore] = useState(false);
+  const [health, setHealth] = useState(null);
+  const st = useSettings();
+  useEffect(() => { initSettings(); startActivity(); }, []);
+  useEffect(() => { startup().then(r => { if (r && r.healed && r.healed.fixed.length) setHealth(r.healed.fixed.length + ' Datenproblem(e) automatisch repariert'); }); }, []);
+  const all = [...TABS, ...HIDDEN];
+  const cur = all.find(t => t.key === nav.key) || TABS[0];
+  const Current = cur.Component;
+  const go = (key, params) => { setMore(false); setNav(n => ({ key, params: params || {}, stack: [...n.stack, { key: n.key, params: n.params }].slice(-20) })); };
+  const goTab = key => { setMore(false); setNav({ key, params: {}, stack: [] }); };
+  const back = () => setNav(n => (n.stack.length ? { key: n.stack[n.stack.length - 1].key, params: n.stack[n.stack.length - 1].params, stack: n.stack.slice(0, -1) } : { key: TABS[0].key, params: {}, stack: [] }));
   const top = Platform.select({ ios: 44, android: RNStatusBar.currentHeight || 24, default: 0 });
+  const needMore = TABS.length > BAR + 1;
+  const bar = needMore ? TABS.slice(0, BAR) : TABS;
+  const rest = needMore ? TABS.slice(BAR) : [];
+  const restActive = rest.some(t => t.key === nav.key);
+  const Item = ({ t, active, onPress }) => (
+    <Pressable onPress={onPress} style={{ flex: 1, alignItems: 'center', paddingVertical: 8 }}>
+      <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
+      <Text numberOfLines={1} style={{ fontSize: 11, color: active ? theme.primary : theme.muted, fontWeight: active ? '700' : '400' }}>{t.title}</Text>
+    </Pressable>
+  );
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg, paddingTop: top }}>
-      <StatusBar style=${q(isDark(bp.palette) ? "light" : "dark")} />
-      <View style={{ flex: 1 }}><Current /></View>
-      <View style={{ flexDirection: 'row', backgroundColor: theme.card, borderTopWidth: 1, borderTopColor: theme.border, paddingBottom: Platform.OS === 'ios' ? 18 : 6 }}>
-        {TABS.map(t => (
-          <Pressable key={t.key} onPress={() => setActive(t.key)} style={{ flex: 1, alignItems: 'center', paddingVertical: 8 }}>
-            <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
-            <Text numberOfLines={1} style={{ fontSize: 11, color: t.key === active ? theme.primary : theme.muted, fontWeight: t.key === active ? '700' : '400' }}>{t.title}</Text>
-          </Pressable>
-        ))}
+    <NavProvider value={{ go, back, goTab, params: nav.params, current: nav.key }}>
+      <View key={st.mode + '|' + st.accent} style={{ flex: 1, backgroundColor: theme.bg, paddingTop: top }}>
+        <StatusBar style={isLightTheme() ? 'dark' : 'light'} />
+        {health ? <Pressable onPress={() => setHealth(null)} style={{ backgroundColor: theme.primary, padding: 8 }}><Text style={{ color: '#fff', textAlign: 'center', fontSize: 12 }}>\u{1FA7A} {health} \xB7 tippen zum Schliessen</Text></Pressable> : null}
+        <View style={{ flex: 1 }}><SafeBoundary key={nav.key + JSON.stringify(nav.params)}><Current /></SafeBoundary></View>
+        {more ? (
+          <View style={{ backgroundColor: theme.card, borderTopWidth: 1, borderTopColor: theme.border, padding: 8 }}>
+            {rest.map(t => (
+              <Pressable key={t.key} onPress={() => goTab(t.key)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12 }}>
+                <Text style={{ fontSize: 20, marginRight: 12 }}>{t.emoji}</Text>
+                <Text style={{ color: t.key === nav.key ? theme.primary : theme.text, fontWeight: t.key === nav.key ? '700' : '400' }}>{t.title}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        <View style={{ flexDirection: 'row', backgroundColor: theme.card, borderTopWidth: 1, borderTopColor: theme.border, paddingBottom: Platform.OS === 'ios' ? 18 : 6 }}>
+          {bar.map(t => <Item key={t.key} t={t} active={t.key === nav.key} onPress={() => goTab(t.key)} />)}
+          {needMore ? <Item t={{ emoji: '\u2630', title: 'Mehr' }} active={restActive || more} onPress={() => setMore(m => !m)} /> : null}
+        </View>
+        <ToastHost />
+        {st.loaded && !st.onboarded ? <Welcome onDone={() => updateSettings({ onboarded: true })} /> : null}
       </View>
-    </View>
+    </NavProvider>
   );
 }
 `;
@@ -25928,9 +26453,10 @@ function genGenericScreen(bp, screen) {
   const targetTitle = Object.fromEntries(refTargets.map((t) => [t, bp.entities.find((x) => x.name === t).titleField]));
   return `import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import { Screen, Btn, Field, Toggle, Chip, Row, ListItem, Empty, Muted, H2, confirmDialog } from '../ui/kit.js';
+import { Screen, Card, Btn, Field, Toggle, Chip, Row, ListItem, Empty, Muted, H2, SearchBar, FAB, FadeIn, confirmDialog } from '../ui/kit.js';
 import { useCollection } from '../hooks.js';
 import * as Service from '../services/${e.service}.js';
+import { useNav } from '../nav.js';
 
 
 const FIELDS = ${J(fieldsMeta)};
@@ -25946,8 +26472,18 @@ function blank() {
 export default function ${screen.name}() {
   const items = useCollection(${q(e.name)}, { orderBy: [['createdAt', 'desc']] });
 ${refTargets.map((t) => `  const opts_${t} = useCollection(${q(t)});`).join("\n")}
-  const [form, setForm] = useState(blank());
-  const [editId, setEditId] = useState(null);
+  const nav = useNav();
+  const pre = nav.params || {};
+  const startRec = pre.edit ? items.find(i => i.id === pre.edit) : null;
+  const [form, setForm] = useState(() => {
+    const o = blank();
+    if (startRec) { for (const f of FIELDS) if (startRec[f.name] != null) o[f.name] = typeof startRec[f.name] === 'number' ? String(startRec[f.name]) : startRec[f.name]; }
+    else if (pre.add) Object.assign(o, pre.add);
+    return o;
+  });
+  const [editId, setEditId] = useState(startRec ? startRec.id : null);
+  const [showForm, setShowForm] = useState(!!(startRec || pre.add));
+  const [q, setQ] = useState('');
   const [error, setError] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -25961,35 +26497,44 @@ ${refTargets.map((t) => `  const opts_${t} = useCollection(${q(t)});`).join("\n"
         data[f.name] = f.type === 'number' ? Number(v) : v;
       }
       if (editId) await Service.update(editId, data); else await Service.create(data);
-      setForm(blank()); setEditId(null);
+      setForm(blank()); setEditId(null); setShowForm(false);
     } catch (e) { setError(String(e.message || e)); }
   }
 
   return (
-    <Screen title=${q(screen.title)}>
+    <Screen title=${q(screen.title)} subtitle={items.length + ' Eintraege'} fab={<FAB label={showForm ? '\u2715' : '+'} onPress={() => { setShowForm(v => !v); if (showForm) { setEditId(null); setForm(blank()); } }} />}>
+      {showForm ? (
+        <Card>
+          <H2>{editId ? 'Bearbeiten' : 'Neu anlegen'}</H2>
+          {FIELDS.map(f => {
+            if (f.type === 'boolean') return <Toggle key={f.name} label={f.name} value={form[f.name]} onValueChange={v => set(f.name, v)} />;
+            if (f.type === 'enum') return (
+              <View key={f.name}><Muted>{f.name}</Muted><Row>{f.values.map(v => <Chip key={v} label={v} active={form[f.name] === v} onPress={() => set(f.name, form[f.name] === v ? '' : v)} />)}</Row></View>
+            );
+            if (f.type === 'ref') {
+              const all = f.to === ${q(e.name)} ? items : ({ ${refTargets.map((t) => `${t}: opts_${t}`).join(", ")} })[f.to] || [];
+              return <View key={f.name}><Muted>{f.name}</Muted><Row>{all.map(o => <Chip key={o.id} label={String(o[TARGET_TITLE[f.to]] || o.id)} active={form[f.name] === o.id} onPress={() => set(f.name, form[f.name] === o.id ? '' : o.id)} />)}</Row></View>;
+            }
+            return <Field key={f.name} label={f.name + (f.required ? ' *' : '')} value={form[f.name]} onChangeText={v => set(f.name, v)} keyboardType={f.type === 'number' ? 'numeric' : 'default'} />;
+          })}
+          {error ? <Text style={{ color: '#ef4444', marginBottom: 8 }}>{error}</Text> : null}
+          <Btn label={editId ? 'Speichern' : 'Hinzufuegen'} onPress={save} />
+          <Btn kind="ghost" label="Abbrechen" onPress={() => { setEditId(null); setForm(blank()); setShowForm(false); setError(''); }} />
+        </Card>
+      ) : null}
       ${screen.purpose ? `<Muted>${screen.purpose.replace(/[<>{}]/g, "")}</Muted>` : ""}
-      <H2>{editId ? 'Bearbeiten' : 'Neu'}</H2>
-      {FIELDS.map(f => {
-        if (f.type === 'boolean') return <Toggle key={f.name} label={f.name} value={form[f.name]} onValueChange={v => set(f.name, v)} />;
-        if (f.type === 'enum') return (
-          <View key={f.name}><Muted>{f.name}</Muted><Row>{f.values.map(v => <Chip key={v} label={v} active={form[f.name] === v} onPress={() => set(f.name, form[f.name] === v ? '' : v)} />)}</Row></View>
-        );
-        if (f.type === 'ref') {
-          const all = f.to === ${q(e.name)} ? items : ({ ${refTargets.map((t) => `${t}: opts_${t}`).join(", ")} })[f.to] || [];
-          return <View key={f.name}><Muted>{f.name}</Muted><Row>{all.map(o => <Chip key={o.id} label={String(o[TARGET_TITLE[f.to]] || o.id)} active={form[f.name] === o.id} onPress={() => set(f.name, form[f.name] === o.id ? '' : o.id)} />)}</Row></View>;
-        }
-        return <Field key={f.name} label={f.name + (f.required ? ' *' : '')} value={form[f.name]} onChangeText={v => set(f.name, v)} keyboardType={f.type === 'number' ? 'numeric' : 'default'} />;
-      })}
-      {error ? <Text style={{ color: '#ef4444', marginBottom: 8 }}>{error}</Text> : null}
-      <Btn label={editId ? 'Speichern' : 'Hinzufuegen'} onPress={save} />
-      {editId ? <Btn kind="ghost" label="Abbrechen" onPress={() => { setEditId(null); setForm(blank()); }} /> : null}
-      <H2>Eintraege ({items.length})</H2>
-      {items.length === 0 ? <Empty text="Noch keine Eintraege." /> : null}
-      {items.map(it => (
-        <ListItem key={it.id} title={String(it[TITLE] == null ? it.id : it[TITLE])}
-          subtitle={FIELDS.filter(f => f.name !== TITLE && it[f.name] != null && it[f.name] !== '' && f.type !== 'ref').slice(0, 2).map(f => f.name + ': ' + String(it[f.name])).join(' \xB7 ')}
-          onPress={() => { const o = blank(); for (const f of FIELDS) if (it[f.name] != null) o[f.name] = typeof it[f.name] === 'number' ? String(it[f.name]) : it[f.name]; setForm(o); setEditId(it.id); }}
-          right={<Text onPress={() => confirmDialog('Eintrag loeschen?', () => Service.remove(it.id).catch(e => setError(String(e.message || e))))} style={{ fontSize: 18 }}>\u{1F5D1}\uFE0F</Text>} />
+      {items.length > 4 ? <SearchBar value={q} onChangeText={setQ} /> : null}
+      {items.length === 0 ? <Empty icon=${q(e.emoji)} text="Noch keine Eintraege. Tippe auf +, um den ersten anzulegen." /> : null}
+      {items.filter(it => !q.trim() || String(it[TITLE] || '').toLowerCase().includes(q.trim().toLowerCase())).map((it, i) => (
+        <FadeIn key={it.id} delay={Math.min(i, 8) * 40}>
+          <ListItem icon=${q(e.emoji)} title={String(it[TITLE] == null ? it.id : it[TITLE])}
+            subtitle={FIELDS.filter(f => f.name !== TITLE && it[f.name] != null && it[f.name] !== '' && f.type !== 'ref').slice(0, 2).map(f => f.name + ': ' + String(it[f.name])).join(' \xB7 ')}
+            onPress={() => nav.go('Detail', { entity: ${q(e.name)}, id: it.id })}
+            right={<View style={{ flexDirection: 'row' }}>
+              <Text onPress={() => { const o = blank(); for (const f of FIELDS) if (it[f.name] != null) o[f.name] = typeof it[f.name] === 'number' ? String(it[f.name]) : it[f.name]; setForm(o); setEditId(it.id); setShowForm(true); }} style={{ fontSize: 18, marginRight: 12 }}>\u270F\uFE0F</Text>
+              <Text onPress={() => confirmDialog('Eintrag loeschen?', () => Service.remove(it.id).catch(e => setError(String(e.message || e))))} style={{ fontSize: 18 }}>\u{1F5D1}\uFE0F</Text>
+            </View>} />
+        </FadeIn>
       ))}
     </Screen>
   );
@@ -26001,7 +26546,8 @@ function genConfigFiles(bp) {
     { path: "src/theme.js", content: genTheme(bp) },
     { path: "src/db/schema.js", content: genSchemaJs(bp) },
     { path: "index.js", content: genIndexJs() },
-    { path: "App.js", content: genAppJs(bp) }
+    { path: "App.js", content: genAppJs(bp) },
+    { path: "src/meta.js", content: genMetaJs(bp) }
   ];
   for (const e of bp.entities) files.push({ path: `src/services/${e.service}.js`, content: genServiceBase(e) });
   for (const [path2, content] of Object.entries(EMBEDDED)) files.push({ path: path2, content });
@@ -26121,7 +26667,7 @@ async function verifyProject(files, blueprint, { app = "" } = {}) {
   const checks = [];
   const add = (file, severity, code, message) => issues.push({ file, severity, code, message });
   const map = new Map(files.map((f) => [f.path, f.content]));
-  const js = files.filter((f) => f.path.endsWith(".js"));
+  const js = files.filter((f) => f.path.endsWith(".js") && !/^(desktop|scripts)\//.test(f.path));
   const bp = blueprint;
   const sucrase = await getSucrase();
   const check = (name, ok, detail) => checks.push({ name, ok, detail: detail || "" });
@@ -26231,6 +26777,57 @@ async function verifyProject(files, blueprint, { app = "" } = {}) {
     }
   }
   check("Jede Entitaet hat Service + Screen, alles ist verdrahtet", !coverage, coverage ? coverage + " Problem(e)" : `${bp.entities.length} Entitaeten, ${bp.screens.length} Screens`);
+  let quality = 0, qWarn = 0;
+  const metaSrc = map.get("src/meta.js") || "";
+  for (const f of ["src/nav.js", "src/screens/DashboardScreen.js", "src/screens/DetailScreen.js", "src/meta.js", "src/selfdoctor.js", "src/screens/DoctorScreen.js", "src/settings.js", "src/toast.js", "src/activity.js", "src/welcome.js", "src/screens/SettingsScreen.js"]) {
+    if (!map.has(f)) {
+      quality++;
+      add(f, "error", "no-wiring-file", `Verdrahtungs-Datei fehlt: ${f}`);
+    }
+  }
+  for (const e of bp.entities) if (metaSrc && !metaSrc.includes(`"name": "${e.name}"`)) {
+    quality++;
+    add("src/meta.js", "error", "meta-missing", `Dashboard/Detail kennen "${e.name}" nicht`);
+  }
+  if (app_js && !/NavProvider/.test(app_js)) {
+    quality++;
+    add("App.js", "error", "no-nav", "App.js hat keine Navigation (NavProvider)");
+  }
+  for (const s of bp.screens) {
+    const src = map.get(s.file);
+    if (!src) continue;
+    const e = bp.entities.find((x) => x.name === s.entity);
+    const missing = e.fields.filter((f) => f.type !== "json" && !new RegExp("\\b" + f.name + "\\b").test(src)).map((f) => f.name);
+    if (missing.length) {
+      quality++;
+      add(s.file, "error", "field-unused", `Felder der Tabelle "${e.name}" nicht bedienbar: ${missing.join(", ")}`);
+    }
+    if (!/\.(create|insert)\s*\(/.test(src)) {
+      quality++;
+      add(s.file, "error", "no-create", "Screen kann keine Eintraege anlegen");
+    }
+    if (!/\.remove\s*\(/.test(src)) {
+      quality++;
+      add(s.file, "error", "no-remove", "Screen kann keine Eintraege loeschen");
+    }
+    if (!/\.update\s*\(/.test(src)) {
+      quality++;
+      add(s.file, "error", "no-update", "Screen kann keine Eintraege bearbeiten");
+    }
+    if (!/['"]Detail['"]/.test(src)) {
+      qWarn++;
+      add(s.file, "warn", "no-detail-link", "Eintraege fuehren nicht zur Detail-Ansicht (nav.go('Detail', \u2026))");
+    }
+    if (!/<Empty\b/.test(src)) {
+      qWarn++;
+      add(s.file, "warn", "no-empty-state", "Kein Leerzustand (<Empty>)");
+    }
+    if (!/confirmDialog/.test(src)) {
+      qWarn++;
+      add(s.file, "warn", "no-confirm", "Loeschen ohne Rueckfrage (confirmDialog)");
+    }
+  }
+  check("Kritiker: Felder, Anlegen/Bearbeiten/Loeschen, Navigation, Dashboard", !quality, quality ? quality + " Problem(e)" : qWarn ? `ok, ${qWarn} Hinweis(e)` : "alle Screens vollstaendig und verdrahtet");
   const sandbox = await runSandbox({ map, bp, sucrase, add });
   for (const c of sandbox.checks) checks.push(c);
   const errors = issues.filter((i) => i.severity === "error");
@@ -26418,8 +27015,8 @@ Antworte NUR mit JSON in genau dieser Form:
    {"name":"Habits","title":"Gewohnheiten","emoji":"\u2705","entity":"habits","zweck":"Was der Screen kann (Liste, Anlegen, Filter, Statistik ...)"}
  ]
 }
-Regeln fuer entitaeten (= Datenbank-Tabellen): 2 bis 6, Namen camelCase im Plural ohne Umlaute. Je 3 bis 10 Felder. Typen: string, number, boolean, date, enum (mit values), ref (mit "to" = Name einer anderen Entitaet), json. KEINE Felder id, createdAt, updatedAt (kommen automatisch). Die Entitaeten muessen ausreichen, damit ALLE Kernfunktionen echt funktionieren (nichts nur vortaeuschen).
-Regeln fuer screens: 2 bis 6, jeder gehoert zu genau einer Entitaet, jede Entitaet braucht mindestens einen Screen. Farben sind bewusst anders als beim Original, gut lesbar (Text auf Hintergrund starker Kontrast).
+Regeln fuer entitaeten (= Datenbank-Tabellen): 4 bis 9 (je nach Umfang der App, verknuepft ueber ref), Namen camelCase im Plural ohne Umlaute. Je 3 bis 12 Felder. Typen: string, number, boolean, date, enum (mit values), ref (mit "to" = Name einer anderen Entitaet), json. KEINE Felder id, createdAt, updatedAt (kommen automatisch). Die Entitaeten muessen ausreichen, damit ALLE Kernfunktionen echt funktionieren (nichts nur vortaeuschen).
+Regeln fuer screens: ein Screen je Haupt-Entitaet (bis 10), jeder gehoert zu genau einer Entitaet, jede Entitaet braucht mindestens einen Screen. Farben sind bewusst anders als beim Original, gut lesbar (Text auf Hintergrund starker Kontrast).
 Wenn die App unklar ist, nimm die wahrscheinlichste Bedeutung und erwaehne das in der Zusammenfassung. Maximal 6 Eintraege pro Liste.`;
 var schemaText = (bp) => JSON.stringify(bp.schema.collections, null, 1);
 var seedPrompt = (bp, clean) => `Schreibe src/db/seed.js: realistische deutsche Demo-Daten fuer den ersten Start.
@@ -26448,6 +27045,7 @@ Regeln:
 - Daten: useCollection(...) fuer Anzeige; Aenderungen NUR ueber  import * as ${e.service} from '../services/${e.service}.js'  (create/update/remove + Extras-Funktionen). Fuer andere Sammlungen duerfen ihre Services importiert werden: ${bp.entities.filter((x) => x !== e).map((x) => `../services/${x.service}.js`).join(", ") || "(keine)"}.
 - Vollstaendige Funktion: Liste mit Leerzustand (Empty), Anlegen, Bearbeiten, Loeschen (mit confirmDialog), Fehler aus Service-Aufrufen in try/catch als Text anzeigen. Eingaben validieren (Pflichtfelder, Zahlen). Nutze die Extras-Funktionen des Service (Suche, Filter, Statistik) sichtbar in der Oberflaeche.
 - Alle Felder des Schemas der Sammlung muessen bedienbar sein (enum = Chips, ref = Auswahl per Chips aus der Ziel-Sammlung, boolean = Toggle, number = Field mit keyboardType numeric, date = Field mit Format JJJJ-MM-TT).
+- Verdrahtung: import { useNav } from '../nav.js'; const nav = useNav(). Tippen auf einen Eintrag ruft nav.go('Detail', { entity: '${e.name}', id: item.id }) (zeigt Details + verknuepfte Eintraege). Oeffnet der Screen mit nav.params.edit (Id) soll er diesen Eintrag direkt zum Bearbeiten laden, mit nav.params.add (Objekt) das Formular damit vorbelegen.
 - Nur Felder aus dem Schema benutzen. Keine Platzhalter.
 SCHEMA:
 ${schemaText(bp)}
@@ -26577,6 +27175,7 @@ function stripFences(t) {
   if (blocks.length) return blocks.sort((x, y) => y[1].length - x[1].length)[0][1].trim();
   return s.replace(/^```[a-zA-Z]*\r?\n?/, "").replace(/```\s*$/, "").trim();
 }
+var DEPTH_RULES = "kernfunktionen = die 6-10 wichtigsten echten Funktionen; nutzerfluesse = 3-6 konkrete Ablaeufe Schritt fuer Schritt; bildschirme = alle noetigen Ansichten (Liste, Detail, Formular, Dashboard) und wie sie verlinkt sind.";
 var toArr = (v) => Array.isArray(v) ? v.map(String).slice(0, 8) : v ? [String(v)] : [];
 function makeTally() {
   return { calls: 0, free: 0, paid: 0, byModel: {} };
@@ -26631,10 +27230,61 @@ function parseAnalysis(a, brands) {
   analysis.blueprint = blueprintView(scrubDeep(analysis, brands), brands);
   return analysis;
 }
-async function analyzeApp(rotator, app, onEvent) {
-  const name = checkName(app);
-  const a = await askJSON(rotator, makeTally(), onEvent, { task: "analyze", system: ANALYSIS_SYSTEM(LEGAL_RULES), user: "App: " + name, maxTokens: 6e3 });
-  return parseAnalysis(a, name);
+var MAX_IMAGES = 4;
+function hostName(u) {
+  try {
+    return new URL(/^https?:/i.test(u) ? u : "https://" + u).hostname.replace(/^www\./, "").split(".")[0];
+  } catch (e) {
+    return "";
+  }
+}
+async function fetchPageText(url, fetchImpl) {
+  const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
+  if (!f || !url) return "";
+  const u = /^https?:/i.test(url) ? url : "https://" + url;
+  const tries = typeof document === "undefined" ? [u] : ["https://r.jina.ai/" + u, u];
+  for (const t of tries) {
+    try {
+      const r = await Promise.race([f(t), new Promise((_, rej) => setTimeout(() => rej(new Error("t")), 15e3))]);
+      if (!r.ok) continue;
+      let txt = await r.text();
+      if (/<html|<body/i.test(txt)) {
+        txt = txt.replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ");
+      }
+      txt = txt.replace(/&[a-z#0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
+      if (txt.length > 200) return txt.slice(0, 6e3);
+    } catch (e) {
+    }
+  }
+  return "";
+}
+async function analyzeApp(rotator, app, onEvent, extra = {}) {
+  const url = String(extra.url || "").trim();
+  const notes = String(extra.notes || "").trim().slice(0, 4e3);
+  let images = (Array.isArray(extra.images) ? extra.images : []).filter((x) => /^data:image\//.test(x)).slice(0, MAX_IMAGES);
+  const name = checkName(String(app || "").trim() || hostName(url));
+  if (BLOCKED_INPUT.test(url + " " + notes)) throw new Error("Geblockt: Nachbauten, die t\xE4uschen oder Zugangsdaten abgreifen k\xF6nnten, baue ich nicht.");
+  let user = "App: " + name;
+  if (url) {
+    if (onEvent) onEvent({ label: "Lese Webseite" });
+    const page = await (extra.fetchPage || fetchPageText)(url);
+    user += "\nURL: " + url + (page ? "\nTEXT DER SEITE (Auszug):\n" + page : "\n(Seitentext nicht lesbar \u2013 nutze dein Wissen ueber die App)");
+  }
+  if (notes) user += "\nWUENSCHE/INFOS DES NUTZERS:\n" + notes;
+  let note = "";
+  if (images.length) {
+    const p = rotator.plan({ task: "analyze", promptTok: 3e3, wanted: 6e3, vision: true });
+    if (!p.list.length) {
+      note = "Screenshots ignoriert: Daf\xFCr brauchst du einen Google-AI-Studio-Key (gratis, \u2699\uFE0F Einstellungen).";
+      images = [];
+    } else user += `
+${images.length} Screenshot(s) im Anhang: leite daraus die echten Bildschirme, Funktionen und Ablaeufe ab (nur Funktion, nichts Geschuetztes uebernehmen).`;
+  }
+  const sys = ANALYSIS_SYSTEM(LEGAL_RULES) + "\nDetailgrad: " + DEPTH_RULES;
+  const a = await askJSON(rotator, makeTally(), onEvent, { task: "analyze", system: sys, user, maxTokens: 6e3, images });
+  const res = parseAnalysis(a, name);
+  if (note) res.hinweis = note;
+  return res;
 }
 var MIX_MAX = 4;
 async function mixApps(rotator, apps, onEvent, onStep = () => {
@@ -26663,7 +27313,7 @@ async function mixApps(rotator, apps, onEvent, onStep = () => {
   }));
   const system = ANALYSIS_SYSTEM(LEGAL_RULES) + `
 
-APP-MIXER: Du bekommst ${list2.length} analysierte Apps. Erfinde daraus EINE neue, stimmige App mit eigenem Konzept und eigenem Namen: nimm von jeder App die wertvollsten freien Funktionen und verbinde sie sinnvoll (gemeinsame Daten, ein roter Faden, keine losen Einzel-Apps nebeneinander). Die Entitaeten muessen zusammen passen (Verweise zwischen Tabellen nutzen, wo die Funktionen sich verbinden). Halte dich an die Limits (max 6 Tabellen, max 6 Screens): lieber die besten Funktionen sauber als alles halb. Fuelle zusaetzlich das Feld
+APP-MIXER: Du bekommst ${list2.length} analysierte Apps. Erfinde daraus EINE neue, stimmige App mit eigenem Konzept und eigenem Namen: nimm von jeder App die wertvollsten freien Funktionen und verbinde sie sinnvoll (gemeinsame Daten, ein roter Faden, keine losen Einzel-Apps nebeneinander). Die Entitaeten muessen zusammen passen (Verweise zwischen Tabellen nutzen, wo die Funktionen sich verbinden). Halte dich an die Limits (max 10 Tabellen, max 10 Screens): lieber die besten Funktionen sauber als alles halb. Fuelle zusaetzlich das Feld
  "herkunft": [{"app":"Name der Original-App","uebernommen":["welche Funktionen/Ideen aus dieser App in den Mix eingeflossen sind"]}]
 Name, Farben, Texte und Design sind neu und duerfen keiner der Original-Apps aehneln. "nicht_kopieren" fasst die geschuetzten Elemente ALLER Original-Apps zusammen.`;
   const m = await askJSON(rotator, makeTally(), onEvent, { task: "analyze", system, user: "Zu mischende Apps:\n" + JSON.stringify(compact), maxTokens: 8e3 });
@@ -26842,8 +27492,8 @@ ${JSON.stringify(bp.schema.collections)}`;
 
 // src/agent.js
 init_embedded();
-var EDITABLE = /^(src\/screens\/(?!DataScreen)[A-Za-z0-9_]+Screen\.js|src\/services\/[A-Za-z0-9_]+Extras\.js|src\/db\/seed\.js)$/;
-var GENERATED = /^(src\/theme\.js|src\/db\/schema\.js|App\.js|index\.js|src\/services\/[A-Za-z0-9_]+Service\.js)$/;
+var EDITABLE = /^(src\/screens\/(?!DataScreen|DoctorScreen|SettingsScreen|DashboardScreen|DetailScreen)[A-Za-z0-9_]+Screen\.js|src\/services\/[A-Za-z0-9_]+Extras\.js|src\/db\/seed\.js)$/;
+var GENERATED = /^(src\/theme\.js|src\/db\/schema\.js|src\/meta\.js|App\.js|index\.js|src\/services\/[A-Za-z0-9_]+Service\.js)$/;
 function blueprintToRaw(bp) {
   return {
     palette: bp.palette,
@@ -26868,7 +27518,7 @@ ARBEITSWEISE
 - IMMER, in JEDER Antwort: liefere in "ideen" genau 3 wahnsinnige Ideen im Stil von Rick Sanchez (genial-verrueckt, sarkastisch, mit Rick-Humor, notfalls ein "*burp*"), die als NAECHSTER Schritt fuer genau diese App am kl\xFCgsten waeren. Jede Idee: 1 Satz, konkret mit dieser App umsetzbar (Feld, Screen, Funktion, Farbe, Startdaten), nur lokal/offline, ohne Marke des Originals, und als Anweisung formuliert, die der Nutzer direkt zurueckschicken kann.
 - Aendere nur, was verlangt ist. Behalte alles andere bei.
 
-STRUKTUR (Tabellen, Felder, Screens, Farben) aenderst du NUR ueber "blueprint": gib dann die KOMPLETTE neue Liste von entitaeten, screens und optional palette an (Format wie im aktuellen Blueprint). Daraus werden Datenbank-Schema, Services, Navigation und Theme automatisch neu erzeugt. Felder id/createdAt/updatedAt gibt es automatisch. Max. 6 Tabellen mit je max. 10 Feldern, max. 6 Screens, jede Tabelle braucht einen Screen.
+STRUKTUR (Tabellen, Felder, Screens, Farben) aenderst du NUR ueber "blueprint": gib dann die KOMPLETTE neue Liste von entitaeten, screens und optional palette an (Format wie im aktuellen Blueprint). Daraus werden Datenbank-Schema, Services, Navigation und Theme automatisch neu erzeugt. Felder id/createdAt/updatedAt gibt es automatisch. Max. 10 Tabellen mit je max. 12 Feldern, max. 10 Screens, jede Tabelle braucht einen Screen.
 CODE aenderst du ueber "dateien": Liste von {"pfad","inhalt"} mit dem KOMPLETTEN neuen Dateiinhalt. Erlaubte Pfade NUR: src/screens/<Name>Screen.js, src/services/<Name>Extras.js, src/db/seed.js. (Name = Gross geschriebener Tabellen- bzw. Screen-Name; neue Screens muessen im blueprint stehen.) Aendert sich ein Feld oder eine Tabelle, schreibe die betroffenen Screens/Extras mit neu, damit alles zusammenpasst. Extras exportieren am Ende "samples" fuer jede Funktion.
 Antwortformat, NUR JSON:
 {"antwort":"...","ideen":["Rick-Idee 1","Rick-Idee 2","Rick-Idee 3"],"blueprint":{"entitaeten":[...],"screens":[...],"palette":{...}} oder weglassen,"dateien":[...] oder []}`;
@@ -27228,7 +27878,7 @@ async function runCloneJob({ dir = ".", id, env = process.env, rotator, git = re
   let lastCommit = 0;
   const write = (force, msg) => {
     fs.writeFileSync(path.join(cdir, "status.json"), JSON.stringify(status));
-    if (force || now() - lastCommit > throttleMs) {
+    if (force || now() - lastCommit >= throttleMs) {
       lastCommit = now();
       git.commit(msg || `Klon ${id}: ${status.stage}`.slice(0, 80));
     }
@@ -27264,7 +27914,7 @@ async function runCloneJob({ dir = ".", id, env = process.env, rotator, git = re
         status.stage = p.label;
         write(false);
       });
-      else analysis = await analyze(rot, Array.isArray(job.app) ? job.app[0] : job.app, ev);
+      else analysis = await analyze(rot, Array.isArray(job.app) ? job.app[0] : job.app, ev, job.extra || {});
     }
     const project = await generate(rot, job.app, analysis, (p) => {
       status.stage = p.label;
