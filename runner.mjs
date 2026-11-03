@@ -286,6 +286,92 @@ export function confirmDialog(message, onYes) {
   Alert.alert('Sicher?', message, [{ text: 'Abbrechen', style: 'cancel' }, { text: 'Ja', style: 'destructive', onPress: onYes }]);
 }
 `,
+      "src/ui/viz.js": `import React from 'react';
+import { View, Text, Pressable, ScrollView } from 'react-native';
+import { theme } from '../theme.js';
+
+const t = theme;
+export const TONES = [t.primary, t.accent, '#22c55e', '#06b6d4', '#ec4899', '#f97316', '#8b5cf6', '#14b8a6'];
+
+// Umschalter (Segmented Control): options = [{ key, label }]
+export function Segmented({ options, value, onChange }) {
+  return (
+    <View style={{ flexDirection: 'row', backgroundColor: t.card, borderRadius: 14, padding: 4, borderWidth: 1, borderColor: t.border, marginBottom: 12 }}>
+      {options.map(o => {
+        const on = o.key === value;
+        return (
+          <Pressable key={o.key} onPress={() => onChange(o.key)} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: on ? t.primary : 'transparent' }}>
+            <Text style={{ color: on ? '#fff' : t.muted, fontWeight: on ? '800' : '500', fontSize: 13 }} numberOfLines={1}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// Balkendiagramm aus Views: data = [{ label, value }]
+export function BarChart({ data, format = v => String(v), height = 120 }) {
+  const max = Math.max(1, ...data.map(d => Math.abs(d.value)));
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingTop: 18 }}>
+        {data.map((d, i) => (
+          <View key={d.label + i} style={{ width: 64, alignItems: 'center', marginRight: 6 }}>
+            <Text style={{ color: t.muted, fontSize: 10, marginBottom: 2 }} numberOfLines={1}>{format(d.value)}</Text>
+            <View style={{ height, justifyContent: 'flex-end' }}>
+              <View style={{ width: 34, height: Math.max(4, Math.round(Math.abs(d.value) / max * height)), borderRadius: 8, backgroundColor: i % 2 ? t.accent : t.primary }} />
+            </View>
+            <Text style={{ color: t.text, fontSize: 11, marginTop: 4 }} numberOfLines={1}>{d.label}</Text>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+export function SectionTitle({ children, right }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 8 }}>
+      <Text style={{ color: t.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>{children}</Text>
+      {right || null}
+    </View>
+  );
+}
+
+export const pad2 = n => String(n).padStart(2, '0');
+export function todayStr() { const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+export function dayLabel(s) {
+  if (!s) return 'Ohne Datum';
+  const d = String(s).slice(0, 10);
+  const today = todayStr();
+  const tm = new Date(); tm.setDate(tm.getDate() + 1);
+  const tomorrow = tm.getFullYear() + '-' + pad2(tm.getMonth() + 1) + '-' + pad2(tm.getDate());
+  if (d === today) return 'Heute';
+  if (d === tomorrow) return 'Morgen';
+  const p = d.split('-');
+  return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : d;
+}
+export function fmtNum(v) {
+  const n = Number(v);
+  if (!isFinite(n)) return '0';
+  return Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : n.toFixed(2);
+}
+
+// JavaScript lokal ausfuehren (ohne Server). Gibt { logs: [text], error } zurueck.
+export function runJs(code) {
+  const logs = [];
+  const fmt = a => a.map(x => { try { return typeof x === 'string' ? x : JSON.stringify(x); } catch (e) { return String(x); } }).join(' ');
+  const con = { log: (...a) => logs.push(fmt(a)), info: (...a) => logs.push(fmt(a)), warn: (...a) => logs.push('\u26A0 ' + fmt(a)), error: (...a) => logs.push('\u2716 ' + fmt(a)) };
+  try {
+    const Ctor = Function;
+    const out = new Ctor('console', '"use strict";\\n' + String(code || ''))(con);
+    if (out !== undefined) logs.push('\u2192 ' + fmt([out]));
+    return { logs, error: null };
+  } catch (e) {
+    return { logs, error: String(e && e.message ? e.message : e) };
+  }
+}
+`,
       "src/screens/DataScreen.js": `import React, { useState } from 'react';
 import { Text, View, Platform, Share } from 'react-native';
 import { Screen, Card, Btn, Field, H2, Muted, Row, confirmDialog } from '../ui/kit.js';
@@ -24405,7 +24491,7 @@ var require_dist2 = __commonJS({
       return "3.35.1";
     }
     exports.getVersion = getVersion;
-    function transform(code, options) {
+    function transform2(code, options) {
       _Options.validateOptions.call(void 0, options);
       try {
         const sucraseContext = getSucraseContext(code, options);
@@ -24441,7 +24527,7 @@ var require_dist2 = __commonJS({
         throw e;
       }
     }
-    exports.transform = transform;
+    exports.transform = transform2;
     function getFormattedTokens(code, options) {
       const tokens = getSucraseContext(code, options).tokenProcessor.tokens;
       return _formatTokens2.default.call(void 0, code, tokens);
@@ -25265,7 +25351,7 @@ function safeName(name, appName) {
   if (n.length < 3 || findBrand(n, appName).length) n = "Nova" + NAMES[Math.floor(Math.random() * NAMES.length)];
   return n;
 }
-var ALLOWED_PKGS = /* @__PURE__ */ new Set(["react", "react-native", "@react-native-async-storage/async-storage", "expo-status-bar"]);
+var ALLOWED_PKGS = /* @__PURE__ */ new Set(["react", "react-native", "@react-native-async-storage/async-storage", "expo-status-bar", "react-native-safe-area-context"]);
 function checkFile(path2, content, appName) {
   const issues = [];
   const c = String(content || "");
@@ -25304,7 +25390,8 @@ var VERSIONS = {
   "react-native": "0.86.3",
   "react-native-web": "~0.21.0",
   "@expo/metro-runtime": "~57.0.16",
-  "@react-native-async-storage/async-storage": "2.2.0"
+  "@react-native-async-storage/async-storage": "2.2.0",
+  "react-native-safe-area-context": "~5.7.0"
 };
 function slugify(name) {
   let s = String(name || "app").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "");
@@ -25788,11 +25875,11 @@ function createDb({ schema, seed, storage, key = "app_db", now = () => Date.now(
     }
     return { touched: [...touched], count };
   }
-  function run(name, q2) {
-    q2 = q2 || {};
-    let arr = q2.where ? data[name].filter((d) => matches(d, q2.where)) : data[name].slice();
-    if (q2.orderBy) {
-      const keys = (Array.isArray(q2.orderBy) ? q2.orderBy : [q2.orderBy]).map((k) => Array.isArray(k) ? k : [k, q2.order || "asc"]);
+  function run(name, q3) {
+    q3 = q3 || {};
+    let arr = q3.where ? data[name].filter((d) => matches(d, q3.where)) : data[name].slice();
+    if (q3.orderBy) {
+      const keys = (Array.isArray(q3.orderBy) ? q3.orderBy : [q3.orderBy]).map((k) => Array.isArray(k) ? k : [k, q3.order || "asc"]);
       arr.sort((a, b) => {
         for (const [f, dir] of keys) {
           const an = a[f] == null, bn = b[f] == null;
@@ -25806,9 +25893,9 @@ function createDb({ schema, seed, storage, key = "app_db", now = () => Date.now(
         return 0;
       });
     }
-    const off = Number(q2.offset) > 0 ? Number(q2.offset) : 0;
+    const off = Number(q3.offset) > 0 ? Number(q3.offset) : 0;
     if (off) arr = arr.slice(off);
-    if (Number(q2.limit) > 0) arr = arr.slice(0, Number(q2.limit));
+    if (Number(q3.limit) > 0) arr = arr.slice(0, Number(q3.limit));
     return arr.map((d) => out(name, d));
   }
   function makeCollection(name) {
@@ -25818,11 +25905,11 @@ function createDb({ schema, seed, storage, key = "app_db", now = () => Date.now(
         const d = byId[name].get(id);
         return d ? out(name, d) : null;
       },
-      list(q2) {
-        return run(name, q2);
+      list(q3) {
+        return run(name, q3);
       },
-      first(q2) {
-        return run(name, { ...q2 || {}, limit: 1 })[0] || null;
+      first(q3) {
+        return run(name, { ...q3 || {}, limit: 1 })[0] || null;
       },
       count(where) {
         return where ? data[name].filter((d) => matches(d, where)).length : data[name].length;
@@ -26282,11 +26369,387 @@ function normalizeBlueprint(raw, appName) {
 
 // src/scaffold.js
 init_embedded();
+
+// src/archetypes.js
 var J = (v) => JSON.stringify(v, null, 2);
 var q = (s) => JSON.stringify(String(s));
+var RX = {
+  code: /^(code|quelltext|skript|script|snippet|programm|source)$/i,
+  lang: /^(sprache|language|lang|typ)$/i,
+  status: /(status|phase|stufe|stage|zustand|spalte|state|fortschritt)/i,
+  date: /(datum|date|faellig|fällig|termin|start|frist|deadline|zeit|am$)/i,
+  bool: /(erledigt|done|fertig|abgehakt|check|gekauft|completed)/i,
+  num: /(betrag|preis|summe|kosten|menge|wert|amount|price|total|anzahl|dauer|gewicht|punkte|saldo|budget|stueck|stück)/i,
+  longText: /^(text|inhalt|notiz|notizen|content|body|beschreibung|details|kommentar|memo)$/i,
+  fileName: /(datei|file|snippet|skript|script|quelltext|code)/i,
+  notesName: /(notiz|note|journal|tagebuch|memo|idee|dokument|artikel|eintrag)/i
+};
+function pickLayout(e) {
+  const code = e.fields.find((f) => f.type === "string" && RX.code.test(f.name)) || (RX.fileName.test(e.name) ? e.fields.find((f) => f.type === "string" && RX.longText.test(f.name)) : null);
+  if (code) return { kind: "editor", code: code.name, lang: (e.fields.find((f) => RX.lang.test(f.name) && (f.type === "string" || f.type === "enum")) || {}).name || null };
+  const statusEnum = e.fields.find((f) => f.type === "enum" && f.values && f.values.length >= 2 && f.values.length <= 6 && RX.status.test(f.name));
+  if (statusEnum) return { kind: "board", status: statusEnum.name };
+  const long = e.fields.find((f) => f.type === "string" && RX.longText.test(f.name));
+  if (long && (RX.notesName.test(e.name) || !e.fields.some((f) => f.type === "number"))) return { kind: "notes", long: long.name };
+  const bool = e.fields.find((f) => f.type === "boolean" && RX.bool.test(f.name)) || e.fields.find((f) => f.type === "boolean");
+  if (bool) return { kind: "checklist", bool: bool.name };
+  const num = e.fields.find((f) => f.type === "number" && RX.num.test(f.name));
+  if (num) return { kind: "ledger", num: num.name };
+  const date = e.fields.find((f) => f.type === "date") || e.fields.find((f) => f.type === "string" && RX.date.test(f.name));
+  if (date) return { kind: "agenda", date: date.name };
+  const num2 = e.fields.find((f) => f.type === "number");
+  return { kind: "cards", num: num2 ? num2.name : null };
+}
+var LAYOUT_NAMES = { editor: "Code-Editor", board: "Kanban-Board", notes: "Notizen", checklist: "Checkliste", ledger: "Statistik", agenda: "Agenda", cards: "Karten" };
+var ACTIONS = `
+function Actions({ onEdit, onDelete }) {
+  return (
+    <View style={{ flexDirection: 'row' }}>
+      <Text onPress={onEdit} style={{ fontSize: 18, marginRight: 14 }}>\u270F\uFE0F</Text>
+      <Text onPress={onDelete} style={{ fontSize: 18 }}>\u{1F5D1}\uFE0F</Text>
+    </View>
+  );
+}
+`;
+function genArchetypeScreen(bp, screen) {
+  const e = bp.entities.find((x) => x.name === screen.entity);
+  const L = pickLayout(e);
+  const refs = e.fields.filter((f) => f.type === "ref");
+  const fieldsMeta = e.fields.filter((f) => f.type !== "json").map((f) => ({ name: f.name, type: f.type, values: f.values, to: f.to, required: !!f.required }));
+  const refTargets = [...new Set(refs.map((f) => f.to))];
+  const targetTitle = Object.fromEntries(refTargets.map((t) => [t, bp.entities.find((x) => x.name === t).titleField]));
+  const enumF = e.fields.find((f) => f.type === "enum" && f.values && f.values.length && f.name !== L.status);
+  const numF = L.num || (e.fields.find((f) => f.type === "number") || {}).name || null;
+  const dateF = L.date || (e.fields.find((f) => f.type === "date") || {}).name || null;
+  const longF = L.long || null;
+  const head = `import React, { useState } from 'react';
+import { Text, View, Pressable, ScrollView, TextInput } from 'react-native';
+import { Screen, Card, Btn, Field, Toggle, Chip, Row, ListItem, Empty, Muted, H2, SearchBar, FAB, FadeIn, Avatar, Badge, Stat, ProgressBar, confirmDialog } from '../ui/kit.js';
+import { Segmented, BarChart, SectionTitle, TONES, dayLabel, todayStr, fmtNum, runJs } from '../ui/viz.js';
+import { theme } from '../theme.js';
+import { useCollection } from '../hooks.js';
+import * as Service from '../services/${e.service}.js';
+import { useNav } from '../nav.js';
+
+// Layout: ${LAYOUT_NAMES[L.kind]} (fest gebaut, passend zur Datenform)
+const FIELDS = ${J(fieldsMeta)};
+const TITLE = ${q(e.titleField)};
+const TARGET_TITLE = ${J(targetTitle)};
+const ENUM = ${enumF ? J({ name: enumF.name, values: enumF.values }) : "null"};
+const NUM = ${numF ? q(numF) : "null"};
+const DATE = ${dateF ? q(dateF) : "null"};
+const LONG = ${longF ? q(longF) : "null"};
+const CODEF = ${L.code ? q(L.code) : "null"};
+const SKIP = ${J([L.status, L.date, L.kind === "cards" || L.kind === "notes" ? enumF && enumF.name : null, L.kind === "cards" || L.kind === "ledger" ? numF : null].filter(Boolean))};
+const ICON = ${q(e.emoji)};
+${ACTIONS}
+function blank() {
+  const o = {};
+  for (const f of FIELDS) o[f.name] = f.type === 'boolean' ? false : '';
+  return o;
+}
+
+function show(f, v) { return f.type === 'date' ? dayLabel(v) : f.type === 'number' ? fmtNum(v) : String(v); }
+function summary(it) {
+  return FIELDS.filter(f => f.name !== TITLE && f.name !== LONG && f.name !== CODEF && !SKIP.includes(f.name) && it[f.name] != null && it[f.name] !== '' && f.type !== 'ref' && f.type !== 'boolean').slice(0, 2).map(f => f.name + ': ' + show(f, it[f.name])).join(' \xB7 ');
+}
+`;
+  const logic = `
+export default function ${screen.name}() {
+  const items = useCollection(${q(e.name)}, { orderBy: [['createdAt', 'desc']] });
+${refTargets.map((t) => `  const opts_${t} = useCollection(${q(t)});`).join("\n")}
+  const nav = useNav();
+  const pre = nav.params || {};
+  const startRec = pre.edit ? items.find(i => i.id === pre.edit) : null;
+  const [form, setForm] = useState(() => {
+    const o = blank();
+    if (startRec) { for (const f of FIELDS) if (startRec[f.name] != null) o[f.name] = typeof startRec[f.name] === 'number' ? String(startRec[f.name]) : startRec[f.name]; }
+    else if (pre.add) Object.assign(o, pre.add);
+    return o;
+  });
+  const [editId, setEditId] = useState(startRec ? startRec.id : null);
+  const [showForm, setShowForm] = useState(!!(startRec || pre.add));
+  const [q, setQ] = useState('');
+  const [error, setError] = useState('');
+  const [sort, setSort] = useState('new');
+  const [pick, setPick] = useState('all');
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const fail = e => setError(String((e && e.message) || e));
+
+  async function save() {
+    setError('');
+    try {
+      const data = {};
+      for (const f of FIELDS) {
+        const v = form[f.name];
+        if (v === '' || v === undefined) { data[f.name] = null; continue; }
+        data[f.name] = f.type === 'number' ? Number(v) : v;
+      }
+      if (editId) await Service.update(editId, data); else await Service.create(data);
+      setForm(blank()); setEditId(null); setShowForm(false);
+    } catch (e) { fail(e); }
+  }
+  function startEdit(it) {
+    const o = blank();
+    for (const f of FIELDS) if (it[f.name] != null) o[f.name] = typeof it[f.name] === 'number' ? String(it[f.name]) : it[f.name];
+    setForm(o); setEditId(it.id); setShowForm(true); setError('');
+  }
+  function askRemove(it) { confirmDialog('Eintrag loeschen?', () => Service.remove(it.id).catch(fail)); }
+  async function patch(it, p) { try { await Service.update(it.id, p); } catch (e) { fail(e); } }
+  const open = it => nav.go('Detail', { entity: ${q(e.name)}, id: it.id });
+  const match = it => !q.trim() || FIELDS.some(f => f.type !== 'ref' && String(it[f.name] == null ? '' : it[f.name]).toLowerCase().includes(q.trim().toLowerCase()));
+  const found = items.filter(match);
+`;
+  const formJsx = `      {showForm ? (
+        <Card>
+          <H2>{editId ? 'Bearbeiten' : 'Neu anlegen'}</H2>
+          {FIELDS.map(f => {
+            if (f.type === 'boolean') return <Toggle key={f.name} label={f.name} value={form[f.name]} onValueChange={v => set(f.name, v)} />;
+            if (f.type === 'enum') return (
+              <View key={f.name}><Muted>{f.name}</Muted><Row>{f.values.map(v => <Chip key={v} label={v} active={form[f.name] === v} onPress={() => set(f.name, form[f.name] === v ? '' : v)} />)}</Row></View>
+            );
+            if (f.type === 'ref') {
+              const all = f.to === ${q(e.name)} ? items : ({ ${refTargets.map((t) => `${t}: opts_${t}`).join(", ")} })[f.to] || [];
+              return <View key={f.name}><Muted>{f.name}</Muted><Row>{all.map(o => <Chip key={o.id} label={String(o[TARGET_TITLE[f.to]] || o.id)} active={form[f.name] === o.id} onPress={() => set(f.name, form[f.name] === o.id ? '' : o.id)} />)}</Row></View>;
+            }
+            return <Field key={f.name} label={f.name + (f.required ? ' *' : '')} value={form[f.name]} multiline={f.name === LONG} placeholder={f.type === 'date' ? 'JJJJ-MM-TT' : undefined} onChangeText={v => set(f.name, v)} keyboardType={f.type === 'number' ? 'numeric' : 'default'} />;
+          })}
+          {error ? <Text style={{ color: theme.danger, marginBottom: 8 }}>{error}</Text> : null}
+          <Row>
+            <Btn label={editId ? 'Speichern' : 'Hinzufuegen'} onPress={save} />
+            <Btn kind="ghost" label="Abbrechen" onPress={() => { setEditId(null); setForm(blank()); setShowForm(false); setError(''); }} />
+          </Row>
+        </Card>
+      ) : null}
+      {!showForm && error ? <Text style={{ color: theme.danger, marginBottom: 8 }}>{error}</Text> : null}
+`;
+  const empty = `      {items.length === 0 ? <Empty icon={ICON} text="Noch nichts da. Tippe auf +, um den ersten Eintrag anzulegen." action={<Btn small label="+ Neu" onPress={() => setShowForm(true)} />} /> : null}
+`;
+  const searchBar = `      {items.length > 3 ? <SearchBar value={q} onChangeText={setQ} /> : null}
+`;
+  const wrap = (body) => `
+  return (
+    <Screen title=${q(screen.title)} subtitle={items.length + ' Eintraege'} fab={<FAB label={showForm ? '\u2715' : '+'} onPress={() => { setShowForm(v => !v); if (showForm) { setEditId(null); setForm(blank()); } }} />}>
+${formJsx}${screen.purpose ? `      <Muted>${screen.purpose.replace(/[<>{}]/g, "")}</Muted>
+` : ""}${body}    </Screen>
+  );
+}
+`;
+  let view = "";
+  let extra = "";
+  if (L.kind === "board") {
+    extra = `  const S = ${q(L.status)};
+  const COLS = ${J(e.fields.find((f) => f.name === L.status).values)};
+  const colOf = it => (COLS.includes(it[S]) ? it[S] : COLS[0]);
+  const move = (it, d) => { const i = COLS.indexOf(colOf(it)) + d; if (i >= 0 && i < COLS.length) patch(it, { [S]: COLS[i] }); };
+`;
+    view = `${empty}${searchBar}      {items.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+          {COLS.map((v, ci) => {
+            const list = found.filter(it => colOf(it) === v);
+            return (
+              <View key={v} style={{ width: 272, marginHorizontal: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: TONES[ci % TONES.length], marginRight: 8 }} />
+                  <Text style={{ color: theme.text, fontWeight: '800', flex: 1 }}>{String(v).toUpperCase()}</Text>
+                  <Text style={{ color: theme.muted }}>{list.length}</Text>
+                </View>
+                {list.map(it => (
+                  <FadeIn key={it.id}>
+                    <Card style={{ borderLeftWidth: 4, borderLeftColor: TONES[ci % TONES.length] }} onPress={() => open(it)}>
+                      <Text numberOfLines={2} style={{ color: theme.text, fontWeight: '700', fontSize: 15 }}>{String(it[TITLE] == null ? it.id : it[TITLE])}</Text>
+                      {summary(it) ? <Text numberOfLines={2} style={{ color: theme.muted, marginTop: 4, fontSize: 12 }}>{summary(it)}</Text> : null}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                        <Row>
+                          <Btn small kind="ghost" label="\u25C0" disabled={ci === 0} onPress={() => move(it, -1)} />
+                          <Btn small kind="ghost" label="\u25B6" disabled={ci === COLS.length - 1} onPress={() => move(it, 1)} />
+                        </Row>
+                        <Actions onEdit={() => startEdit(it)} onDelete={() => askRemove(it)} />
+                      </View>
+                    </Card>
+                  </FadeIn>
+                ))}
+                <Btn small kind="ghost" label="+ Karte" onPress={() => { setForm({ ...blank(), [S]: v }); setEditEmpty(); }} />
+              </View>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+`;
+    extra += `  const setEditEmpty = () => { setEditId(null); setShowForm(true); };
+`;
+  } else if (L.kind === "agenda") {
+    extra = `  const today = todayStr();
+  const dOf = it => (it[DATE] ? String(it[DATE]).slice(0, 10) : '');
+  const shown = found.filter(it => pick === 'all' || (pick === 'past' ? dOf(it) && dOf(it) < today : !dOf(it) || dOf(it) >= today));
+  const keys = [...new Set(shown.map(dOf))].sort((a, b) => (a === '' ? 1 : b === '' ? -1 : pick === 'past' ? (a < b ? 1 : -1) : (a < b ? -1 : 1)));
+  const nToday = items.filter(it => dOf(it) === today).length;
+  const nOver = items.filter(it => dOf(it) && dOf(it) < today).length;
+`;
+    view = `${empty}${items_stats_agenda()}${searchBar}      {items.length > 0 ? <Segmented value={pick} onChange={setPick} options={[{ key: 'up', label: 'Kommend' }, { key: 'all', label: 'Alle' }, { key: 'past', label: 'Vergangen' }]} /> : null}
+      {keys.map(k => (
+        <View key={k || 'none'}>
+          <SectionTitle right={k && k < today ? <Badge label="vorbei" color={theme.danger} /> : k === today ? <Badge label="heute" color={theme.primary} /> : null}>{dayLabel(k)}</SectionTitle>
+          {shown.filter(it => dOf(it) === k).map((it, i) => (
+            <FadeIn key={it.id} delay={Math.min(i, 8) * 40}>
+              <ListItem icon={ICON} title={String(it[TITLE] == null ? it.id : it[TITLE])} subtitle={summary(it)} onPress={() => open(it)} right={<Actions onEdit={() => startEdit(it)} onDelete={() => askRemove(it)} />} />
+            </FadeIn>
+          ))}
+        </View>
+      ))}
+      {items.length > 0 && keys.length === 0 ? <Empty icon="\u{1F4C5}" text="In dieser Ansicht ist nichts." /> : null}
+`;
+  } else if (L.kind === "checklist") {
+    extra = `  const B = ${q(L.bool)};
+  const done = items.filter(it => it[B]).length;
+  const shown = found.filter(it => pick === 'all' || (pick === 'done' ? it[B] : !it[B]));
+`;
+    view = `${empty}      {items.length > 0 ? (
+        <Card>
+          <Text style={{ color: theme.text, fontSize: 22, fontWeight: '800' }}>{done} von {items.length} erledigt</Text>
+          <ProgressBar value={done} max={items.length} />
+          <Muted>{done === items.length ? 'Alles geschafft \u{1F389}' : 'Noch ' + (items.length - done) + ' offen'}</Muted>
+        </Card>
+      ) : null}
+${searchBar}      {items.length > 0 ? <Segmented value={pick === 'all' ? 'todo' : pick} onChange={setPick} options={[{ key: 'todo', label: 'Offen' }, { key: 'done', label: 'Erledigt' }, { key: 'every', label: 'Alle' }]} /> : null}
+      {shown.filter(it => pick === 'every' || (pick === 'done' ? it[B] : !it[B])).map((it, i) => (
+        <FadeIn key={it.id} delay={Math.min(i, 8) * 40}>
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable onPress={() => patch(it, { [B]: !it[B] })} style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: it[B] ? theme.primary : theme.border, backgroundColor: it[B] ? theme.primary : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                {it[B] ? <Text style={{ color: '#fff', fontWeight: '800' }}>\u2713</Text> : null}
+              </Pressable>
+              <Pressable style={{ flex: 1 }} onPress={() => open(it)}>
+                <Text numberOfLines={2} style={{ color: it[B] ? theme.muted : theme.text, fontWeight: '700', fontSize: 16, textDecorationLine: it[B] ? 'line-through' : 'none' }}>{String(it[TITLE] == null ? it.id : it[TITLE])}</Text>
+                {summary(it) ? <Text numberOfLines={1} style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>{summary(it)}</Text> : null}
+              </Pressable>
+              <Actions onEdit={() => startEdit(it)} onDelete={() => askRemove(it)} />
+            </View>
+          </Card>
+        </FadeIn>
+      ))}
+`;
+    extra = extra.replace("const shown = found.filter(it => pick === 'all' || (pick === 'done' ? it[B] : !it[B]));", "const shown = found;");
+    view = view.replace("pick === 'all' ? 'todo' : pick", "pick === 'all' ? 'todo' : pick").replace("pick === 'every' || (pick === 'done' ? it[B] : !it[B])", "pick === 'every' || (pick === 'done' ? it[B] : !it[B])");
+  } else if (L.kind === "ledger") {
+    extra = `  const N = ${q(L.num)};
+  const val = it => Number(it[N]) || 0;
+  const total = items.reduce((s, it) => s + val(it), 0);
+  const avg = items.length ? total / items.length : 0;
+  const groups = ENUM
+    ? ENUM.values.map(v => ({ label: v, value: items.filter(it => it[ENUM.name] === v).reduce((s, it) => s + val(it), 0) })).filter(g => g.value !== 0)
+    : DATE
+      ? Object.entries(items.reduce((m, it) => { const k = it[DATE] ? String(it[DATE]).slice(0, 7) : null; if (k) m[k] = (m[k] || 0) + val(it); return m; }, {})).sort((a, b) => (a[0] < b[0] ? -1 : 1)).slice(-8).map(([label, value]) => ({ label, value }))
+      : [];
+  const shown = [...found].sort((a, b) => (sort === 'high' ? val(b) - val(a) : sort === 'az' ? String(a[TITLE]).localeCompare(String(b[TITLE])) : 0));
+`;
+    view = `${empty}      {items.length > 0 ? (
+        <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+          <Stat label={N + ' gesamt'} value={fmtNum(total)} icon="\u03A3" />
+          <Stat label="Durchschnitt" value={fmtNum(avg)} icon="\xD8" />
+        </View>
+      ) : null}
+      {groups.length > 0 ? <Card><Muted>{ENUM ? N + ' nach ' + ENUM.name : N + ' pro Monat'}</Muted><BarChart data={groups} format={fmtNum} /></Card> : null}
+${searchBar}      {items.length > 0 ? <Segmented value={sort} onChange={setSort} options={[{ key: 'new', label: 'Neueste' }, { key: 'high', label: 'H\xF6chster Wert' }, { key: 'az', label: 'A\u2013Z' }]} /> : null}
+      {shown.map((it, i) => (
+        <FadeIn key={it.id} delay={Math.min(i, 8) * 40}>
+          <ListItem icon={ICON} title={String(it[TITLE] == null ? it.id : it[TITLE])} subtitle={summary(it)} onPress={() => open(it)}
+            right={<View style={{ alignItems: 'flex-end' }}><Text style={{ color: theme.text, fontWeight: '800', fontSize: 16 }}>{fmtNum(val(it))}</Text><Actions onEdit={() => startEdit(it)} onDelete={() => askRemove(it)} /></View>} />
+        </FadeIn>
+      ))}
+`;
+  } else if (L.kind === "editor") {
+    extra = `  const C = ${q(L.code)};
+  const LANG = ${L.lang ? q(L.lang) : "null"};
+  const [openId, setOpenId] = useState(null);
+  const [draft, setDraft] = useState('');
+  const [out, setOut] = useState(null);
+  const cur = openId ? items.find(i => i.id === openId) : null;
+  const canRun = !cur || !LANG || /^(js|javascript|node|typescript|ts)/i.test(String(cur[LANG] || 'javascript'));
+  const openCode = it => { setOpenId(it.id); setDraft(String(it[C] || '')); setOut(null); };
+  const runIt = () => setOut(runJs(draft));
+  const saveCode = async () => { if (cur) { await patch(cur, { [C]: draft }); setOut({ logs: ['Gespeichert \u2713'], error: null }); } };
+`;
+    view = `${empty}${searchBar}      {cur ? (
+        <Card>
+          <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ color: theme.text, fontWeight: '800', fontSize: 16 }}>{String(cur[TITLE] == null ? cur.id : cur[TITLE])}</Text>
+            <Text onPress={() => setOpenId(null)} style={{ color: theme.muted, fontSize: 18 }}>\u2715</Text>
+          </Row>
+          <TextInput value={draft} onChangeText={setDraft} multiline autoCapitalize="none" autoCorrect={false} spellCheck={false} placeholder="Code hier eingeben \u2026" placeholderTextColor={theme.muted}
+            style={{ backgroundColor: '#0b1020', color: '#e2e8f0', borderRadius: 12, padding: 12, minHeight: 180, fontFamily: 'monospace', fontSize: 13, textAlignVertical: 'top' }} />
+          <Row style={{ marginTop: 8 }}>
+            <Btn label="\u25B6 Ausfuehren" onPress={runIt} disabled={!canRun} />
+            <Btn kind="ghost" label="\u{1F4BE} Speichern" onPress={saveCode} />
+          </Row>
+          {!canRun ? <Muted>Ausfuehren geht nur fuer JavaScript (laeuft lokal auf dem Geraet, ohne Server). Speichern und Bearbeiten gehen immer.</Muted> : null}
+          {out ? (
+            <View style={{ backgroundColor: '#05080f', borderRadius: 12, padding: 12, marginTop: 8 }}>
+              <Text style={{ color: '#64748b', fontSize: 11, marginBottom: 4 }}>KONSOLE</Text>
+              {out.logs.length === 0 && !out.error ? <Text style={{ color: '#64748b', fontFamily: 'monospace' }}>(keine Ausgabe)</Text> : null}
+              {out.logs.map((l, i) => <Text key={i} style={{ color: '#86efac', fontFamily: 'monospace', fontSize: 13 }}>{l}</Text>)}
+              {out.error ? <Text style={{ color: '#fca5a5', fontFamily: 'monospace', fontSize: 13 }}>\u2716 {out.error}</Text> : null}
+            </View>
+          ) : null}
+        </Card>
+      ) : null}
+      {found.map((it, i) => (
+        <FadeIn key={it.id} delay={Math.min(i, 8) * 40}>
+          <ListItem icon={ICON} title={String(it[TITLE] == null ? it.id : it[TITLE])} subtitle={summary(it)} onPress={() => openCode(it)}
+            right={<View style={{ alignItems: 'flex-end' }}><Text onPress={() => open(it)} style={{ color: theme.muted, fontSize: 12, marginBottom: 4 }}>Details \u203A</Text><Actions onEdit={() => startEdit(it)} onDelete={() => askRemove(it)} /></View>} />
+        </FadeIn>
+      ))}
+`;
+  } else {
+    const notes = L.kind === "notes";
+    extra = `  const shown = [...found].sort((a, b) => (sort === 'az' ? String(a[TITLE]).localeCompare(String(b[TITLE])) : sort === 'high' && NUM ? (Number(b[NUM]) || 0) - (Number(a[NUM]) || 0) : 0)).filter(it => !ENUM || pick === 'all' || it[ENUM.name] === pick);
+`;
+    view = `${empty}${searchBar}      {ENUM && items.length > 0 ? (
+        <Row>
+          <Chip label={'Alle (' + items.length + ')'} active={pick === 'all'} onPress={() => setPick('all')} />
+          {ENUM.values.map(v => <Chip key={v} label={v + ' (' + items.filter(it => it[ENUM.name] === v).length + ')'} active={pick === v} onPress={() => setPick(pick === v ? 'all' : v)} />)}
+        </Row>
+      ) : null}
+      {items.length > 1 ? <Segmented value={sort} onChange={setSort} options={[{ key: 'new', label: 'Neueste' }, { key: 'az', label: 'A\u2013Z' }${notes ? "" : ", ...(NUM ? [{ key: 'high', label: 'H\xF6chster Wert' }] : [])"}]} /> : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 }}>
+        {shown.map((it, i) => {
+          const tone = TONES[(ENUM ? ENUM.values.indexOf(it[ENUM.name]) : i) % TONES.length] || TONES[0];
+          return (
+            <View key={it.id} style={{ width: '50%', padding: 5 }}>
+              <FadeIn delay={Math.min(i, 8) * 40}>
+                <Card onPress={() => open(it)} style={{ marginBottom: 0, minHeight: 150, borderTopWidth: 4, borderTopColor: tone }}>
+                  <Text style={{ fontSize: 26 }}>{ICON}</Text>
+                  <Text numberOfLines={2} style={{ color: theme.text, fontWeight: '800', fontSize: 15, marginTop: 6 }}>{String(it[TITLE] == null ? it.id : it[TITLE])}</Text>
+                  ${notes ? "{LONG && it[LONG] ? <Text numberOfLines={5} style={{ color: theme.muted, marginTop: 6, fontSize: 13 }}>{String(it[LONG])}</Text> : null}" : "{NUM && it[NUM] != null && it[NUM] !== '' ? <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 18, marginTop: 4 }}>{fmtNum(it[NUM])}</Text> : null}"}
+                  {ENUM && it[ENUM.name] ? <View style={{ marginTop: 6 }}><Badge label={String(it[ENUM.name])} color={tone} /></View> : null}
+                  {summary(it) ? <Text numberOfLines={2} style={{ color: theme.muted, marginTop: 6, fontSize: 12 }}>{summary(it)}</Text> : null}
+                  <View style={{ marginTop: 'auto', paddingTop: 10, alignItems: 'flex-end' }}><Actions onEdit={() => startEdit(it)} onDelete={() => askRemove(it)} /></View>
+                </Card>
+              </FadeIn>
+            </View>
+          );
+        })}
+      </View>
+`;
+  }
+  return head + logic + extra + wrap(view);
+}
+function items_stats_agenda() {
+  return `      {items.length > 0 ? (
+        <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+          <Stat label="Heute" value={String(nToday)} icon="\u{1F4CD}" />
+          <Stat label="Ueberfaellig" value={String(nOver)} icon="\u23F0" />
+        </View>
+      ) : null}
+`;
+}
+
+// src/scaffold.js
+var J2 = (v) => JSON.stringify(v, null, 2);
+var q2 = (s) => JSON.stringify(String(s));
 function genSchemaJs(bp) {
   return `// Datenbank-Schema (automatisch erzeugt). Aenderungen: version erhoehen und bei Bedarf migrations ergaenzen.
-export const schema = ${J(bp.schema)};
+export const schema = ${J2(bp.schema)};
 `;
 }
 function genTheme(bp) {
@@ -26299,9 +26762,9 @@ function genTheme(bp) {
   return `// Farben: eigene Palette in Hell und Dunkel (nicht vom Original uebernommen). \`theme\` wird live umgeschaltet (Einstellungen).
 import { Appearance } from 'react-native';
 
-export const palettes = { dark: ${J(dark)}, light: ${J(light)} };
-export const ACCENTS = ${J(accents)};
-export const DEFAULT_MODE = ${q(isDark(p) ? "dark" : "light")};
+export const palettes = { dark: ${J2(dark)}, light: ${J2(light)} };
+export const ACCENTS = ${J2(accents)};
+export const DEFAULT_MODE = ${q2(isDark(p) ? "dark" : "light")};
 export const theme = { ...palettes[DEFAULT_MODE] };
 export const colors = theme;
 
@@ -26320,7 +26783,7 @@ function genServiceBase(e) {
 // Grundfunktionen sind fest; fachliche Zusatzfunktionen stehen in ./${e.extras}.js
 import { db } from '../db/index.js';
 
-const col = () => db.collection(${q(e.name)});
+const col = () => db.collection(${q2(e.name)});
 
 export function list(query) { return col().list(query); }
 export function get(id) { return col().get(id); }
@@ -26336,7 +26799,7 @@ var fallbackExtras = (e) => `// Zusatzfunktionen fuer "${e.name}"
 import { db } from '../db/index.js';
 
 export function search(text) {
-  return db.collection(${q(e.name)}).list({ where: { ${e.titleField}: { $contains: String(text || '') } } });
+  return db.collection(${q2(e.name)}).list({ where: { ${e.titleField}: { $contains: String(text || '') } } });
 }
 
 export const samples = { search: () => ['a'] };
@@ -26368,16 +26831,17 @@ function genMetaJs(bp) {
   });
   const app = { name: bp.name, version: "1.0.0", emoji: bp.entities[0] && bp.entities[0].emoji || "\u{1F4F1}", features: bp.screens.slice(0, 5).map((x) => ({ emoji: x.emoji, title: x.title, text: x.purpose || "" })) };
   return `// Beschreibung der Datenstruktur fuer Dashboard, Detailansicht und Suche (automatisch erzeugt)
-export const META = ${J(meta)};
-export const APP = ${J(app)};
+export const META = ${J2(meta)};
+export const APP = ${J2(app)};
 `;
 }
 function genAppJs(bp) {
   const imports = [...bp.screens.map((s) => `import ${s.name} from './src/screens/${s.name}.js';`), `import DashboardScreen from './src/screens/DashboardScreen.js';`, `import DetailScreen from './src/screens/DetailScreen.js';`, `import DoctorScreen from './src/screens/DoctorScreen.js';`, `import SettingsScreen from './src/screens/SettingsScreen.js';`, `import DataScreen from './src/screens/DataScreen.js';`].join("\n");
-  const tabs = [`  { key: 'DashboardScreen', title: 'Start', emoji: '\u{1F3E0}', Component: DashboardScreen },`, ...bp.screens.map((s) => `  { key: ${q(s.name)}, title: ${q(s.title)}, emoji: ${q(s.emoji)}, Component: ${s.name} },`), `  { key: 'DataScreen', title: 'Daten', emoji: '\u{1F4BE}', Component: DataScreen },`, `  { key: 'DoctorScreen', title: 'Gesund', emoji: '\u{1FA7A}', Component: DoctorScreen },`, `  { key: 'SettingsScreen', title: 'Einstellungen', emoji: '\u2699\uFE0F', Component: SettingsScreen },`].join("\n");
+  const tabs = [`  { key: 'DashboardScreen', title: 'Start', emoji: '\u{1F3E0}', Component: DashboardScreen },`, ...bp.screens.map((s) => `  { key: ${q2(s.name)}, title: ${q2(s.title)}, emoji: ${q2(s.emoji)}, Component: ${s.name} },`), `  { key: 'DataScreen', title: 'Daten', emoji: '\u{1F4BE}', Component: DataScreen },`, `  { key: 'DoctorScreen', title: 'Gesund', emoji: '\u{1FA7A}', Component: DoctorScreen },`, `  { key: 'SettingsScreen', title: 'Einstellungen', emoji: '\u2699\uFE0F', Component: SettingsScreen },`].join("\n");
   return `import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme, isLightTheme } from './src/theme.js';
 import { useSettings, initSettings, updateSettings } from './src/settings.js';
 import { ToastHost } from './src/toast.js';
@@ -26393,7 +26857,8 @@ ${tabs}
 const HIDDEN = [{ key: 'Detail', Component: DetailScreen }];
 const BAR = 4; // so viele Tabs direkt in der Leiste, der Rest unter "Mehr"
 
-export default function App() {
+function Shell() {
+  const insets = useSafeAreaInsets();
   const [nav, setNav] = useState({ key: TABS[0].key, params: {}, stack: [] });
   const [more, setMore] = useState(false);
   const [health, setHealth] = useState(null);
@@ -26406,7 +26871,8 @@ export default function App() {
   const go = (key, params) => { setMore(false); setNav(n => ({ key, params: params || {}, stack: [...n.stack, { key: n.key, params: n.params }].slice(-20) })); };
   const goTab = key => { setMore(false); setNav({ key, params: {}, stack: [] }); };
   const back = () => setNav(n => (n.stack.length ? { key: n.stack[n.stack.length - 1].key, params: n.stack[n.stack.length - 1].params, stack: n.stack.slice(0, -1) } : { key: TABS[0].key, params: {}, stack: [] }));
-  const top = Platform.select({ ios: 44, android: RNStatusBar.currentHeight || 24, default: 0 });
+  const top = Platform.OS === 'web' ? 0 : Math.max(insets.top, Platform.OS === 'android' ? (RNStatusBar.currentHeight || 0) : 0);
+  const bottom = Math.max(insets.bottom, 6);
   const needMore = TABS.length > BAR + 1;
   const bar = needMore ? TABS.slice(0, BAR) : TABS;
   const rest = needMore ? TABS.slice(BAR) : [];
@@ -26433,7 +26899,7 @@ export default function App() {
             ))}
           </View>
         ) : null}
-        <View style={{ flexDirection: 'row', backgroundColor: theme.card, borderTopWidth: 1, borderTopColor: theme.border, paddingBottom: Platform.OS === 'ios' ? 18 : 6 }}>
+        <View style={{ flexDirection: 'row', backgroundColor: theme.card, borderTopWidth: 1, borderTopColor: theme.border, paddingBottom: bottom }}>
           {bar.map(t => <Item key={t.key} t={t} active={t.key === nav.key} onPress={() => goTab(t.key)} />)}
           {needMore ? <Item t={{ emoji: '\u2630', title: 'Mehr' }} active={restActive || more} onPress={() => setMore(m => !m)} /> : null}
         </View>
@@ -26443,103 +26909,14 @@ export default function App() {
     </NavProvider>
   );
 }
+
+export default function App() {
+  return <SafeAreaProvider><Shell /></SafeAreaProvider>;
+}
 `;
 }
 function genGenericScreen(bp, screen) {
-  const e = bp.entities.find((x) => x.name === screen.entity);
-  const refs = e.fields.filter((f) => f.type === "ref");
-  const fieldsMeta = e.fields.filter((f) => f.type !== "json").map((f) => ({ name: f.name, type: f.type, values: f.values, to: f.to, required: !!f.required }));
-  const refTargets = [...new Set(refs.map((f) => f.to))];
-  const targetTitle = Object.fromEntries(refTargets.map((t) => [t, bp.entities.find((x) => x.name === t).titleField]));
-  return `import React, { useState } from 'react';
-import { Text, View } from 'react-native';
-import { Screen, Card, Btn, Field, Toggle, Chip, Row, ListItem, Empty, Muted, H2, SearchBar, FAB, FadeIn, confirmDialog } from '../ui/kit.js';
-import { useCollection } from '../hooks.js';
-import * as Service from '../services/${e.service}.js';
-import { useNav } from '../nav.js';
-
-
-const FIELDS = ${J(fieldsMeta)};
-const TITLE = ${q(e.titleField)};
-const TARGET_TITLE = ${J(targetTitle)};
-
-function blank() {
-  const o = {};
-  for (const f of FIELDS) o[f.name] = f.type === 'boolean' ? false : '';
-  return o;
-}
-
-export default function ${screen.name}() {
-  const items = useCollection(${q(e.name)}, { orderBy: [['createdAt', 'desc']] });
-${refTargets.map((t) => `  const opts_${t} = useCollection(${q(t)});`).join("\n")}
-  const nav = useNav();
-  const pre = nav.params || {};
-  const startRec = pre.edit ? items.find(i => i.id === pre.edit) : null;
-  const [form, setForm] = useState(() => {
-    const o = blank();
-    if (startRec) { for (const f of FIELDS) if (startRec[f.name] != null) o[f.name] = typeof startRec[f.name] === 'number' ? String(startRec[f.name]) : startRec[f.name]; }
-    else if (pre.add) Object.assign(o, pre.add);
-    return o;
-  });
-  const [editId, setEditId] = useState(startRec ? startRec.id : null);
-  const [showForm, setShowForm] = useState(!!(startRec || pre.add));
-  const [q, setQ] = useState('');
-  const [error, setError] = useState('');
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  async function save() {
-    setError('');
-    try {
-      const data = {};
-      for (const f of FIELDS) {
-        const v = form[f.name];
-        if (v === '' || v === undefined) { data[f.name] = null; continue; }
-        data[f.name] = f.type === 'number' ? Number(v) : v;
-      }
-      if (editId) await Service.update(editId, data); else await Service.create(data);
-      setForm(blank()); setEditId(null); setShowForm(false);
-    } catch (e) { setError(String(e.message || e)); }
-  }
-
-  return (
-    <Screen title=${q(screen.title)} subtitle={items.length + ' Eintraege'} fab={<FAB label={showForm ? '\u2715' : '+'} onPress={() => { setShowForm(v => !v); if (showForm) { setEditId(null); setForm(blank()); } }} />}>
-      {showForm ? (
-        <Card>
-          <H2>{editId ? 'Bearbeiten' : 'Neu anlegen'}</H2>
-          {FIELDS.map(f => {
-            if (f.type === 'boolean') return <Toggle key={f.name} label={f.name} value={form[f.name]} onValueChange={v => set(f.name, v)} />;
-            if (f.type === 'enum') return (
-              <View key={f.name}><Muted>{f.name}</Muted><Row>{f.values.map(v => <Chip key={v} label={v} active={form[f.name] === v} onPress={() => set(f.name, form[f.name] === v ? '' : v)} />)}</Row></View>
-            );
-            if (f.type === 'ref') {
-              const all = f.to === ${q(e.name)} ? items : ({ ${refTargets.map((t) => `${t}: opts_${t}`).join(", ")} })[f.to] || [];
-              return <View key={f.name}><Muted>{f.name}</Muted><Row>{all.map(o => <Chip key={o.id} label={String(o[TARGET_TITLE[f.to]] || o.id)} active={form[f.name] === o.id} onPress={() => set(f.name, form[f.name] === o.id ? '' : o.id)} />)}</Row></View>;
-            }
-            return <Field key={f.name} label={f.name + (f.required ? ' *' : '')} value={form[f.name]} onChangeText={v => set(f.name, v)} keyboardType={f.type === 'number' ? 'numeric' : 'default'} />;
-          })}
-          {error ? <Text style={{ color: '#ef4444', marginBottom: 8 }}>{error}</Text> : null}
-          <Btn label={editId ? 'Speichern' : 'Hinzufuegen'} onPress={save} />
-          <Btn kind="ghost" label="Abbrechen" onPress={() => { setEditId(null); setForm(blank()); setShowForm(false); setError(''); }} />
-        </Card>
-      ) : null}
-      ${screen.purpose ? `<Muted>${screen.purpose.replace(/[<>{}]/g, "")}</Muted>` : ""}
-      {items.length > 4 ? <SearchBar value={q} onChangeText={setQ} /> : null}
-      {items.length === 0 ? <Empty icon=${q(e.emoji)} text="Noch keine Eintraege. Tippe auf +, um den ersten anzulegen." /> : null}
-      {items.filter(it => !q.trim() || String(it[TITLE] || '').toLowerCase().includes(q.trim().toLowerCase())).map((it, i) => (
-        <FadeIn key={it.id} delay={Math.min(i, 8) * 40}>
-          <ListItem icon=${q(e.emoji)} title={String(it[TITLE] == null ? it.id : it[TITLE])}
-            subtitle={FIELDS.filter(f => f.name !== TITLE && it[f.name] != null && it[f.name] !== '' && f.type !== 'ref').slice(0, 2).map(f => f.name + ': ' + String(it[f.name])).join(' \xB7 ')}
-            onPress={() => nav.go('Detail', { entity: ${q(e.name)}, id: it.id })}
-            right={<View style={{ flexDirection: 'row' }}>
-              <Text onPress={() => { const o = blank(); for (const f of FIELDS) if (it[f.name] != null) o[f.name] = typeof it[f.name] === 'number' ? String(it[f.name]) : it[f.name]; setForm(o); setEditId(it.id); setShowForm(true); }} style={{ fontSize: 18, marginRight: 12 }}>\u270F\uFE0F</Text>
-              <Text onPress={() => confirmDialog('Eintrag loeschen?', () => Service.remove(it.id).catch(e => setError(String(e.message || e))))} style={{ fontSize: 18 }}>\u{1F5D1}\uFE0F</Text>
-            </View>} />
-        </FadeIn>
-      ))}
-    </Screen>
-  );
-}
-`;
+  return genArchetypeScreen(bp, screen);
 }
 function genConfigFiles(bp) {
   const files = [
@@ -26555,11 +26932,11 @@ function genConfigFiles(bp) {
 }
 
 // src/verify.js
-var ALLOWED_PKGS2 = ["react", "react-native", "@react-native-async-storage/async-storage", "expo-status-bar", "expo"];
-var sucraseP = null;
+var sucraseNS = __toESM(require_dist2());
+var ALLOWED_PKGS2 = ["react", "react-native", "@react-native-async-storage/async-storage", "expo-status-bar", "expo", "react-native-safe-area-context"];
+var sucraseMod = sucraseNS && (sucraseNS.transform ? sucraseNS : sucraseNS.default) || null;
 async function getSucrase() {
-  if (!sucraseP) sucraseP = Promise.resolve().then(() => __toESM(require_dist2())).then((m) => m, () => null);
-  return sucraseP;
+  return sucraseMod;
 }
 var dirname = (p) => p.split("/").slice(0, -1).join("/");
 function resolvePath(from, spec) {
@@ -26717,7 +27094,7 @@ async function verifyProject(files, blueprint, { app = "" } = {}) {
   check("Importe und Exporte passen zusammen", !importErrors, importErrors ? importErrors + " Problem(e)" : "");
   let forbidden = 0;
   for (const f of js) {
-    if (f.path === "src/db/engine.js" || f.path === "src/hooks.js" || f.path === "src/ui/kit.js") continue;
+    if (f.path === "src/db/engine.js" || f.path === "src/hooks.js" || f.path === "src/ui/kit.js" || f.path === "src/ui/viz.js") continue;
     for (const i of checkFile(f.path, f.content, app)) {
       if (/Nicht erlaubtes Paket/.test(i)) continue;
       if (/kein export/.test(i) && !/^src\/(screens|services|db\/seed)/.test(f.path)) continue;
@@ -27158,6 +27535,39 @@ Schreibe die Datei komplett neu und behebe ALLE Fehler.`
   return { ...res, repair: log2 };
 }
 
+// src/compare.js
+var NEEDS_SERVER = /(deploy|hosting|cloud|server|echtzeit|live[- ]?(chat|video|stream)|kollabor|zusammenarbeit|mehrere nutzer|team|zahlung|bezahl|abo|checkout|push|e-?mail[- ]?versand|video|anruf|ki[- ]?(agent|assistent|chat)|synchronis|konto|login|anmeld|teilen|oeffentlich|öffentlich|marktplatz|socialmedia|feed)/i;
+var STOP = /* @__PURE__ */ new Set(["und", "oder", "mit", "von", "der", "die", "das", "den", "dem", "ein", "eine", "fuer", "f\xFCr", "zum", "zur", "als", "auf", "im", "in", "am", "an", "the", "and", "for", "with"]);
+var words = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9äöüß ]/g, " ").split(/\s+/).filter((w) => w.length >= 4 && !STOP.has(w));
+var stem = (w) => w.replace(/(en|er|e|n|s|ung|ungen)$/, "");
+var hit = (a, b) => {
+  const x = stem(a), y = stem(b);
+  return x.length >= 4 && y.length >= 4 && (x.startsWith(y.slice(0, 5)) || y.startsWith(x.slice(0, 5)));
+};
+function buildCompare(analysis, bp, extrasNames = []) {
+  const funcs = [...new Set([...analysis.kernfunktionen || [], ...analysis.erlaubt_nachzubauen || []].map((x) => String(x).trim()).filter(Boolean))].slice(0, 16);
+  const tables = bp.entities.map((e) => ({ name: e.name, label: e.label, ws: words(e.name + " " + e.label) }));
+  const screens = bp.screens.map((s) => ({ title: s.title, ws: words(s.title + " " + s.name + " " + (s.purpose || "")) }));
+  const fields = bp.entities.flatMap((e) => e.fields.map((f) => ({ tbl: e.label, ws: words(f.name) })));
+  const extras = extrasNames.map((n) => ({ n, ws: words(n.replace(/([A-Z])/g, " $1")) }));
+  const rows = funcs.map((fn) => {
+    const fw = words(fn);
+    const inTable = tables.find((t) => fw.some((a) => t.ws.some((b) => hit(a, b))));
+    const inScreen = screens.find((s) => fw.some((a) => s.ws.some((b) => hit(a, b))));
+    const inField = fields.find((f) => fw.some((a) => f.ws.some((b) => hit(a, b))));
+    const inExtra = extras.find((x) => fw.some((a) => x.ws.some((b) => hit(a, b))));
+    if (NEEDS_SERVER.test(fn)) return inTable && inScreen ? { funktion: fn, status: "teilweise", wo: `Nur als Verwaltung/Liste (\u201E${inScreen.title}"), die echte Funktion braucht einen Server` } : { funktion: fn, status: "server", wo: "Braucht einen Server (l\xE4uft hier lokal nicht)" };
+    if (inTable && inScreen) return { funktion: fn, status: "ja", wo: `Screen \u201E${inScreen.title}" + Tabelle \u201E${inTable.label}"` };
+    if (inScreen || inTable) return { funktion: fn, status: "teilweise", wo: `Teilweise: ${inScreen ? "Screen \u201E" + inScreen.title + '"' : "Tabelle \u201E" + inTable.label + '"'}` };
+    if (inField || inExtra) return { funktion: fn, status: "teilweise", wo: inField ? `Als Feld in \u201E${inField.tbl}"` : `Backend-Funktion ${inExtra.n}` };
+    return { funktion: fn, status: "nein", wo: "Nicht enthalten" };
+  });
+  const score = rows.length ? Math.round(rows.reduce((s, r) => s + (r.status === "ja" ? 1 : r.status === "teilweise" ? 0.5 : 0), 0) / rows.length * 100) : 0;
+  const reachable = rows.filter((r) => r.status !== "server");
+  const scoreLocal = reachable.length ? Math.round(reachable.reduce((s, r) => s + (r.status === "ja" ? 1 : r.status === "teilweise" ? 0.5 : 0), 0) / reachable.length * 100) : 0;
+  return { rows, score, scoreLocal, count: { ja: rows.filter((r) => r.status === "ja").length, teilweise: rows.filter((r) => r.status === "teilweise").length, nein: rows.filter((r) => r.status === "nein").length, server: rows.filter((r) => r.status === "server").length } };
+}
+
 // src/pipeline.js
 function extractJSON(t) {
   const a = t.indexOf("{");
@@ -27411,10 +27821,10 @@ async function generateProject(rotator, app, analysis, onProgress = () => {
   }
   let resumed = 0;
   const make = async (spec, fallback) => {
-    const hit = cp.files[spec.path];
-    if (hit && typeof hit.content === "string") {
+    const hit2 = cp.files[spec.path];
+    if (hit2 && typeof hit2.content === "string") {
       resumed++;
-      return { path: spec.path, content: hit.content, generated: hit.generated !== false, model: hit.model || null, issues: [] };
+      return { path: spec.path, content: hit2.content, generated: hit2.generated !== false, model: hit2.model || null, issues: [] };
     }
     const f = await produce(rotator, tally, ev, ctx, spec, app, fallback, report);
     cp.files[spec.path] = { content: f.content, model: f.model, generated: f.generated };
@@ -27449,7 +27859,7 @@ ${extras[e.name].slice(0, 6e3)}
 
 --- src/db/schema.js (Auszug) ---
 ${JSON.stringify(bp.schema.collections)}`;
-    const f = await make({ path: s.file, prompt: screenPrompt(bp, s), context, maxTokens: 9e3 }, () => genGenericScreen(bp, s));
+    const f = opts.llmScreens ? await make({ path: s.file, prompt: screenPrompt(bp, s), context, maxTokens: 9e3 }, () => genGenericScreen(bp, s)) : { path: s.file, content: genGenericScreen(bp, s), generated: false, model: null, issues: [] };
     out.push(f);
     cur++;
   }
@@ -27486,6 +27896,7 @@ ${JSON.stringify(bp.schema.collections)}`;
     slug: slugify(name),
     files,
     blueprint: bp,
+    compare: buildCompare(clean, bp, bp.entities.flatMap((e) => [...(extras[e.name] || "").matchAll(/export (?:async )?function (\w+)/g)].map((m) => m[1]))),
     report: { resumed, markenFrei, scrubbed, warnungen, fallbacks: report.fallbacks, blueprintNotes: bp.notes, audit, rotator: tally }
   };
 }
@@ -27677,9 +28088,65 @@ ${errText(audit)}`, ideen), ideen, project, changed: [], rolledBack: true, audit
   return { ok: true, antwort, ideen, project: next, changed: applied.changed, rolledBack: false, audit, notes: applied.notes, tally };
 }
 
+// src/buildmission.js
+var clip = (v, n) => String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, n);
+var POLISH_ASPECTS = [
+  "Pruefe, ob jede Kernfunktion der Analyse wirklich bedienbar ist, und ergaenze fehlende Knoepfe/Abfragen/Verknuepfungen.",
+  "Verbessere Leerzustaende, Beschriftungen, Fehlermeldungen und Rueckmeldungen (Toast) fuer Laien.",
+  "Verbessere Suche, Sortierung und Filter, wo sie fehlen."
+];
+var polishText = (focus, notes) => `[Bau-Mission \xB7 Politur] ${focus}
+Aendere NICHTS am Datenmodell. Behalte alles, was funktioniert. Kleine, sichere Verbesserungen.${notes ? "\nVORGABEN DES NUTZERS: " + notes : ""}`;
+async function runBuildStep(rotator, m, st, ctx, { onEvent } = {}) {
+  const inp = m.input || {};
+  if (st.typ === "b-analyse") {
+    m.analysis = await analyzeApp(rotator, inp.app, onEvent, { url: inp.url, notes: inp.notes, images: inp.images });
+    const a = m.analysis;
+    const funcs = (a.kernfunktionen || []).length;
+    return { result: `${a.vorschlag_name || inp.app}: ${funcs} Kernfunktionen erkannt.${a.hinweis ? "\n" + a.hinweis : ""}`, summary: `${funcs} Kernfunktionen erkannt` };
+  }
+  if (st.typ === "b-bau") {
+    if (!m.analysis) throw new Error("Analyse fehlt (Schritt 1 wiederholen)");
+    const project = await generateProject(rotator, inp.app, m.analysis, (p) => {
+      if (onEvent) onEvent({ label: p.label });
+    }, { checkpoint: ctx.checkpoint });
+    if (!ctx.setProject) throw new Error("Kein Speicherort fuer die App");
+    ctx.setProject(project, null);
+    m.projectName = project.name;
+    const au = project.report && project.report.audit;
+    const score = au && typeof au.score === "number" ? au.score : null;
+    m.score = score;
+    const t = `${project.name}: ${project.blueprint.entities.length} Tabellen, ${project.blueprint.screens.length} Screens, ${project.files.length} Dateien${score != null ? ", Qualit\xE4t " + score : ""}.`;
+    return { result: t, summary: t };
+  }
+  if (st.typ === "b-polish") {
+    const cur = ctx.getProject && ctx.getProject();
+    if (!cur || cur.name !== m.projectName) throw new Error("Die gebaute App ist nicht geoeffnet (Bibliothek: App oeffnen, dann fortsetzen)");
+    const screens = cur.blueprint && cur.blueprint.screens || [];
+    const i = st.n || 0;
+    const focus = i < screens.length ? `Verbessere NUR den Screen "${screens[i].title}" (${screens[i].file}): Layout, Texte, Leerzustand, Verknuepfungen zu anderen Screens, Bedienung auf dem Handy.` : POLISH_ASPECTS[(i - screens.length) % POLISH_ASPECTS.length];
+    const res = await chatEdit(rotator, cur, [], polishText(focus, inp.notes), { onEvent });
+    if (!res.ok) throw new Error("Politur nicht bestanden (zurueckgenommen)");
+    if (res.project !== cur && ctx.setProject) ctx.setProject(res.project, cur);
+    m.polished = (m.polished || 0) + (res.changed && res.changed.length ? 1 : 0);
+    const line = clip(String(res.antwort || "").split("\n")[0], 160);
+    return { result: `${focus}
+\u2192 ${line}${res.changed && res.changed.length ? "\nGe\xE4ndert: " + res.changed.join(", ") : ""}`, summary: line || "Verbessert" };
+  }
+  if (st.typ === "b-final") {
+    const cur = ctx.getProject && ctx.getProject();
+    if (!cur || cur.name !== m.projectName) throw new Error("Die gebaute App ist nicht geoeffnet");
+    const au = cur.report && cur.report.audit;
+    const t = `Fertig: \u201E${cur.name}" ist in der Bibliothek (\u{1F5C2}) \u2013 starten, ausprobieren, packen (\u{1F4E6}).
+Politur-Runden mit \xC4nderungen: ${m.polished || 0}.${au && typeof au.score === "number" ? "\nQualit\xE4tswert: " + au.score : ""}`;
+    return { result: t, summary: "App fertig" };
+  }
+  throw new Error("Unbekannter Schritt");
+}
+
 // src/mission.js
 var HOUR = 3600 * 1e3;
-var clip = (v, n) => String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, n);
+var clip2 = (v, n) => String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, n);
 var WORK_SYSTEM = (m, st) => `Du bist "${st.agent}" im KI-Agenten-Team der Mission "${m.titel}". Team: ${m.agenten.map((a) => `${a.name} (${a.rolle})`).join("; ")}.
 ${LEGAL_RULES}
 Erledige NUR deinen Schritt, konkret und direkt verwendbar (Deutsch). Baue auf den bisherigen Ergebnissen auf, wiederhole sie nicht.
@@ -27692,11 +28159,15 @@ function log(m, text2, now) {
 async function runStep(rotator, m, st, ctx, { now = () => Date.now(), onEvent } = {}) {
   const tally = makeTally();
   try {
-    if (st.typ === "app" && ctx.getProject && ctx.getProject()) {
+    if (m.kind === "build") {
+      const r = await runBuildStep(rotator, m, st, ctx, { onEvent });
+      st.result = r.result;
+      st.summary = clip2(r.summary, 160);
+    } else if (st.typ === "app" && ctx.getProject && ctx.getProject()) {
       const res = await chatEdit(rotator, ctx.getProject(), [], `[Mission "${m.titel}", Agent ${st.agent}] ${st.aufgabe}`, { onEvent });
       if (res.project !== ctx.getProject() && ctx.setProject) ctx.setProject(res.project, ctx.getProject());
       st.result = res.antwort;
-      st.summary = clip(res.antwort.split("\n")[0], 160);
+      st.summary = clip2(res.antwort.split("\n")[0], 160);
       if (!res.ok) throw new Error("App-Aenderung nicht bestanden (zurueckgenommen)");
       Object.assign(tally, res.tally || tally);
     } else {
@@ -27713,13 +28184,13 @@ DEIN SCHRITT #${st.id} (${st.titel}): ${st.aufgabe}`
       });
       st.result = String(out.ergebnis || "").slice(0, 12e3);
       if (!st.result.trim()) throw new Error("Leeres Ergebnis");
-      st.summary = clip(out.zusammenfassung || st.result, 160);
+      st.summary = clip2(out.zusammenfassung || st.result, 160);
     }
     st.status = "done";
     log(m, `\u2705 #${st.id} ${st.agent}: ${st.titel}`, now());
   } catch (e) {
     st.tries++;
-    st.error = clip(e.message, 200);
+    st.error = clip2(e.message, 200);
     st.status = st.tries >= 3 ? "failed" : "pending";
     log(m, `${st.status === "failed" ? "\u274C" : "\u21BB"} #${st.id} ${st.titel}: ${st.error}`, now());
     return { outage: isOutage(e) };
@@ -27748,6 +28219,17 @@ async function runMission(rotator, m, ctx, { onUpdate = () => {
     if (now() >= m.deadline) {
       m.status = "timeout";
       log(m, "\u23F0 Zeitbudget aufgebraucht", now());
+      break;
+    }
+    if (m.kind === "build" && m.steps.some((s) => (s.typ === "b-analyse" || s.typ === "b-bau") && s.status === "failed")) {
+      m.steps.forEach((s) => {
+        if (s.status === "pending") {
+          s.status = "failed";
+          s.error = "\xDCbersprungen (Bau fehlgeschlagen)";
+        }
+      });
+      m.status = "failed";
+      log(m, "\u274C Bau fehlgeschlagen \u2013 Rest \xFCbersprungen. Fortsetzen versucht es erneut.", now());
       break;
     }
     const st = m.steps.find((s) => s.status === "pending");
@@ -27834,13 +28316,52 @@ async function runServerMission({ dir = ".", id, env = process.env, rotator, git
     }
   };
   let capped = false;
+  const imgFile = path.join(mdir, "input-images.json");
+  if (m.input && m.input.imgFile) {
+    try {
+      m.input.images = JSON.parse(fs.readFileSync(imgFile, "utf8"));
+    } catch {
+      m.input.images = [];
+    }
+  }
+  const slim = (x) => x.input && x.input.imgFile ? { ...x, input: { ...x.input, images: [] } } : x;
   const save = (x, msg) => {
-    fs.writeFileSync(file, JSON.stringify(x));
+    fs.writeFileSync(file, JSON.stringify(slim(x)));
     if (msg) git.commit(msg);
+  };
+  const pfile = path.join(mdir, "project.json");
+  let project = null;
+  try {
+    project = JSON.parse(fs.readFileSync(pfile, "utf8"));
+  } catch {
+  }
+  const ckFile = path.join(mdir, "checkpoint.json");
+  const mctx = {
+    getProject: () => project,
+    setProject: (n) => {
+      project = n;
+      fs.writeFileSync(pfile, JSON.stringify(n));
+    },
+    checkpoint: {
+      load: async () => {
+        try {
+          return JSON.parse(fs.readFileSync(ckFile, "utf8"));
+        } catch {
+          return null;
+        }
+      },
+      save: async (o) => fs.writeFileSync(ckFile, JSON.stringify(o)),
+      clear: async () => {
+        try {
+          fs.unlinkSync(ckFile);
+        } catch {
+        }
+      }
+    }
   };
   readControl();
   m.runs = (m.runs || 0) + 1;
-  const res = await runMission(rot, m, {}, {
+  const res = await runMission(rot, m, mctx, {
     control,
     now,
     ...runOpts,
