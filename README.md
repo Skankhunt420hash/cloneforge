@@ -9,7 +9,10 @@ CloneForge Web-Build
 | Datenbank | Lokale, schema-geprüfte Datenbank (offline zuerst) |
 | Backend-Logik | `src/services/*` – läuft in der App **und** auf dem Server |
 | Backend-Server | `server/index.mjs` (Node 18+, ohne Zusatzpakete): REST-API für alle Tabellen, Fachfunktionen, Sync zwischen Geräten/Personen, KI-Proxy, liefert die Web-App aus. Start: `npm run server`, Docker: `Dockerfile` |
+| KI-Import | Beliebigen Text (Liste, Mail, Notizen, CSV) einfügen → die KI macht daraus geprüfte Einträge in der gewählten Tabelle |
 | KI | `src/ai.js` (OpenRouter, Google AI Studio, Groq, OpenAI – oder über den eigenen Server) und Tab **KI**: Chat-Agent, der die App über Werkzeuge bedient (suchen, anlegen, ändern, löschen mit Rückfrage, Fachfunktionen), plus app-spezifische KI-Schnellaktionen aus dem Bauplan |
+
+In der CloneForge-Vorschau („▶️ Starten“) nutzt der Klon automatisch den KI-Key von CloneForge – die KI ist sofort testbar.
 
 Alte Klone bekommen KI, Server und Sync automatisch, sobald man sie im „Bearbeiten“-Chat an der Struktur ändert.
 

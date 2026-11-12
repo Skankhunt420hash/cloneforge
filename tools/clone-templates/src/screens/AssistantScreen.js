@@ -8,6 +8,7 @@ import { APP, META } from '../meta.js';
 import { aiStatus, runAgent, ask, askJSON } from '../ai.js';
 import { buildTools, dataSummary, dataFor, features, fieldText } from '../agenttools.js';
 import { SERVICES } from '../aitools.js';
+import { schema } from '../db/schema.js';
 import { toast } from '../toast.js';
 
 // KI-Assistent: Chat, der die App wirklich bedient (Eintraege suchen, anlegen, aendern, auswerten),
@@ -30,6 +31,7 @@ export default function AssistantScreen() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [proposal, setProposal] = useState(null);
+  const [imp, setImp] = useState(null); // { entity, text }
   const scroll = useRef(null);
   const tools = useMemo(() => buildTools(), []);
   const quick = useMemo(() => features(), []);
@@ -78,10 +80,44 @@ export default function AssistantScreen() {
     } finally { setBusy(false); }
   }
 
+  // KI-Import: beliebiger Text (Liste, Mail, Notizen, CSV) → fertige Eintraege
+  async function runImport() {
+    const m = META.find(x => x.name === imp.entity);
+    const text = String(imp.text || '').trim();
+    if (!m || !text || busy) return;
+    push({ role: 'user', content: `📥 Import nach „${m.label}" (${text.length} Zeichen)` });
+    setBusy(true);
+    try {
+      const fields = schema.collections[m.name].fields;
+      const refs = Object.entries(fields).filter(([, d]) => d.type === 'ref').map(([f, d]) => {
+        const t = META.find(x => x.name === d.to);
+        const rows = SERVICES[d.to] ? SERVICES[d.to].list().slice(0, 60).map(r => ({ id: r.id, name: t ? r[t.titleField] : r.id })) : [];
+        return `${f} → ${d.to}: ${JSON.stringify(rows)}`;
+      }).join('\n');
+      const j = await askJSON(`Lies den folgenden Text und erzeuge daraus Datensaetze fuer die Sammlung "${m.label}".
+Felder: ${fieldText(m.name)} (Pflichtfelder mit *; enum nur erlaubte Werte; Datum als ISO-Text JJJJ-MM-TTT00:00:00.000Z; Zahlen als Zahl).
+${refs ? 'Verweise (ref) NUR mit diesen ids:\n' + refs + '\n' : ''}Gib {"eintraege":[{...}]} zurueck, hoechstens 30 Eintraege, nichts erfinden, was nicht im Text steht.
+TEXT:
+${text.slice(0, 15000)}`, { maxTokens: 4000 });
+      const list = (Array.isArray(j) ? j : j.eintraege || j.entries || []).filter(x => x && typeof x === 'object').slice(0, 30);
+      if (!list.length) throw new Error('Die KI hat im Text keine passenden Eintraege gefunden.');
+      setProposal({ entity: m.name, label: m.label, titleField: m.titleField, items: list });
+      setImp(null);
+      push({ role: 'assistant', content: `${list.length} Eintraege erkannt – unten pruefen und uebernehmen.` });
+    } catch (e) {
+      push({ role: 'error', content: e.message || String(e) });
+    } finally { setBusy(false); }
+  }
+
   async function accept(items) {
     const svc = SERVICES[proposal.entity];
+    const allowed = Object.keys(schema.collections[proposal.entity].fields);
     let ok = 0; const errs = [];
-    for (const it of items) { try { await svc.create(it); ok++; } catch (e) { errs.push(e.message); } }
+    for (const raw of items) {
+      const it = {};
+      for (const k of allowed) if (raw[k] !== undefined && raw[k] !== '') it[k] = raw[k];
+      try { await svc.create(it); ok++; } catch (e) { errs.push(e.message); }
+    }
     toast(ok + ' Eintrag/Eintraege angelegt' + (errs.length ? ', ' + errs.length + ' fehlerhaft' : ''), errs.length ? 'warn' : 'ok');
     if (errs.length) push({ role: 'error', content: 'Nicht uebernommen: ' + errs.slice(0, 3).join('; ') });
     setProposal(null);
@@ -117,8 +153,21 @@ export default function AssistantScreen() {
         {quick.length ? (
           <View style={{ marginBottom: 8 }}>
             <Muted>Schnellaktionen</Muted>
-            <Row>{quick.map((f, i) => <Chip key={i} label={(f.emoji || '✨') + ' ' + f.title} onPress={() => runFeature(f)} />)}</Row>
+            <Row>
+              {quick.map((f, i) => <Chip key={i} label={(f.emoji || '✨') + ' ' + f.title} onPress={() => runFeature(f)} />)}
+              <Chip label="📥 Text importieren" active={!!imp} onPress={() => setImp(imp ? null : { entity: META[0] ? META[0].name : '', text: '' })} />
+            </Row>
           </View>
+        ) : null}
+        {imp ? (
+          <Card>
+            <H2>📥 Mit KI importieren</H2>
+            <Muted>Text, Liste, E-Mail, Notizen oder CSV einfuegen – die KI macht daraus Eintraege. Wohin?</Muted>
+            <Row>{META.map(m => <Chip key={m.name} label={(m.emoji || '') + ' ' + m.label} active={imp.entity === m.name} onPress={() => setImp({ ...imp, entity: m.name })} />)}</Row>
+            <TextInput value={imp.text} onChangeText={t => setImp({ ...imp, text: t })} multiline placeholder="Hier Text einfuegen …" placeholderTextColor={theme.muted}
+              style={{ minHeight: 120, color: theme.text, backgroundColor: theme.bg, borderRadius: 12, padding: 12, marginTop: 8, borderWidth: 1, borderColor: theme.border, textAlignVertical: 'top' }} />
+            <Row><Btn small label="Eintraege erkennen" disabled={busy || !imp.text.trim()} onPress={runImport} /><Btn small kind="ghost" label="Abbrechen" onPress={() => setImp(null)} /></Row>
+          </Card>
         ) : null}
         {msgs.length === 0 ? (
           <Card>

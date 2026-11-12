@@ -178,6 +178,11 @@ def patch_index(src):
               "for(const e of(0,t.genConfigFiles)(l))(u.test(e.path)||c.EMBEDDED[e.path]&&!p.has(e.path))&&m(e.path,e.content);", name='agent-upgrade')
     # CloneForge-Oberflaeche: Versprechen auf der Startseite
     src = sub(src, 'Datenbank, Backend, Screens, Pr\\xfcfung \\u2013 alles automatisch', 'Datenbank, Backend-Server, KI-Assistent, Screens, Pr\\xfcfung \\u2013 alles automatisch', name='ui-claim')
+    # Vorschau: Klone duerfen den KI-Key von CloneForge mitbenutzen (KI sofort testbar)
+    src = sub(src, "ct=!(!ee.github||!ee.github.token)&&Object.values(ee.keys).some(Boolean),",
+              "ct=!(!ee.github||!ee.github.token)&&Object.values(ee.keys).some(Boolean),__cfHK=(globalThis.__CF_HOST_KEYS__=ee.keys||{}),", name='host-keys')
+    # Willkommenskarte nur auf dem Tab "Klonen"
+    src = sub(src, "G?(0,W.jsx)(M.default,{settings:ee,update:et,rotator:le,onDone:Y,", "G&&'clone'===K?(0,W.jsx)(M.default,{settings:ee,update:et,rotator:le,onDone:Y,", name='welcome-tab')
     return src
 
 

@@ -21,6 +21,15 @@ export function detectProvider(key) {
   return null;
 }
 
+// In der CloneForge-Vorschau leiht sich die App den Key von CloneForge (nichts einzurichten)
+function hostKey() {
+  const k = typeof globalThis !== 'undefined' && globalThis.__CF_HOST_KEYS__;
+  if (!k || typeof k !== 'object') return '';
+  for (const p of ['google', 'groq', 'openrouter', 'openai']) if (k[p] && detectProvider(k[p])) return String(k[p]).trim();
+  return '';
+}
+const activeKey = () => String(getSettings().aiKey || '').trim() || hostKey();
+
 // Wie wird die KI gerade erreicht? { mode: 'server' | 'key' | null, label }
 export async function aiStatus() {
   const s = getSettings();
@@ -30,6 +39,8 @@ export async function aiStatus() {
   }
   const p = detectProvider(s.aiKey);
   if (p) return { mode: 'key', label: PROVIDERS[p].label };
+  const h = hostKey();
+  if (h) return { mode: 'key', label: PROVIDERS[detectProvider(h)].label + ' (Key aus CloneForge)' };
   return { mode: null, label: 'Nicht eingerichtet' };
 }
 
@@ -80,7 +91,7 @@ export async function chat(messages, { system, maxTokens = 1500, json = false, t
   }
   if (st.mode === 'key') {
     const s = getSettings();
-    return (await callProvider({ key: String(s.aiKey).trim(), model: String(s.aiModel || '').trim(), messages: msgs, maxTokens, json, temperature })).text;
+    return (await callProvider({ key: activeKey(), model: String(s.aiModel || '').trim(), messages: msgs, maxTokens, json, temperature })).text;
   }
   throw new Error('KI ist noch nicht eingerichtet: Einstellungen → KI (kostenloser Key) oder eigener Server.');
 }
