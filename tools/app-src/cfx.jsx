@@ -1020,3 +1020,57 @@ function Hero() {
     </View>
   );
 }
+
+/* ------------------------------------------- Server-Klon: Status am Knopf */
+
+export function CloudStatus({ ctl, onSettings }) {
+  const [, tick] = useState(0);
+  useEffect(() => { const t = setInterval(() => tick(x => x + 1), 15000); return () => clearInterval(t); }, []);
+  if (!ctl) return null;
+  const { job, err, starting, label } = ctl;
+  if (!job && !err && !starting) return null;
+  const st = (job && job.status) || {};
+  const since = job && /^c(\d+)$/.test(job.id || '') ? Date.now() - Number(job.id.slice(1)) : 0;
+  const min = Math.floor(since / 60000);
+  const noSignal = job && st.state === 'running' && !st.startedAt && min >= 5;
+  const pct = st.total ? Math.round((st.done / st.total) * 100) : 0;
+  const actions = job && job.owner && job.repo ? `https://github.com/${job.owner}/${job.repo}/actions` : '';
+  const isAuth = err && /Token|workflow|Zugriff|Recht|API-Key/i.test(err);
+  return (
+    <View style={{ marginTop: 12, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: err || st.state === 'error' ? C.no : C.acc, backgroundColor: err || st.state === 'error' ? 'rgba(255,59,107,0.08)' : 'rgba(0,229,255,0.07)' }}>
+      {starting ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <ActivityIndicator color={C.acc} />
+          <Text style={{ color: C.txt, flex: 1 }}>{label || 'Starte Server …'}</Text>
+        </View>
+      ) : null}
+      {job ? (
+        <View>
+          <Text style={{ color: st.state === 'error' ? C.no : C.acc, fontWeight: '800' }}>
+            {st.state === 'error' ? '❌ Server-Klon fehlgeschlagen' : '☁️ Server baut die App' + (min ? ` · seit ${min} Min.` : '')}
+          </Text>
+          <Text style={{ color: C.txt, marginTop: 4 }}>{st.state === 'error' ? st.error || 'Unbekannter Fehler' : st.stage || 'Server startet …'}</Text>
+          {st.total ? (
+            <View style={{ height: 8, backgroundColor: C.card2, borderRadius: 4, marginTop: 8, overflow: 'hidden' }}>
+              <View style={{ width: pct + '%', height: 8, backgroundColor: C.acc }} />
+            </View>
+          ) : null}
+          {st.state !== 'error' ? <Text style={{ color: C.mut, fontSize: 12, marginTop: 6 }}>Dauert meist 5–15 Minuten. Du kannst die App schließen. Beim nächsten Öffnen holt sie das Ergebnis automatisch.</Text> : null}
+          {noSignal ? <Text style={{ color: C.warn, fontSize: 12, marginTop: 6 }}>Noch keine Rückmeldung vom Server. Prüfe unter GitHub → Actions, ob der Lauf gestartet ist (Actions müssen im Repo erlaubt sein).</Text> : null}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <SmallBtn tone="acc" title="🔄 Stand holen" onPress={ctl.refresh} />
+            {actions ? <SmallBtn title="GitHub-Lauf ansehen" onPress={() => Linking.openURL(actions)} /> : null}
+            <SmallBtn title={st.state === 'error' ? '✖ Schließen' : '✖ Abbrechen'} onPress={ctl.dismiss} />
+          </View>
+        </View>
+      ) : null}
+      {err && !job ? (
+        <View>
+          <Text style={{ color: C.no, fontWeight: '800' }}>❌ Server-Klon nicht gestartet</Text>
+          <Text style={{ color: C.txt, marginTop: 4 }}>{err}</Text>
+          {isAuth && onSettings ? <View style={{ flexDirection: 'row', marginTop: 10 }}><SmallBtn tone="acc" title="⚙️ Einstellungen öffnen" onPress={onSettings} /></View> : null}
+        </View>
+      ) : err && job ? <Text style={{ color: C.warn, fontSize: 12, marginTop: 8 }}>{err}</Text> : null}
+    </View>
+  );
+}

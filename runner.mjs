@@ -28223,7 +28223,7 @@ var realGit = {
   commit(msg) {
     const sh = (c) => execSync(c, { stdio: "pipe" }).toString();
     try {
-      sh("git add -A missions");
+      for (const d of ["missions", "clones"]) if (fs.existsSync(d)) sh("git add -A " + d);
       sh(`git -c user.name=CloneForge -c user.email=bot@cloneforge.local commit -qm "${msg.replace(/"/g, "")}"`);
     } catch {
       return;

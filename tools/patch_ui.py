@@ -97,6 +97,10 @@ rep('re?(0,W.jsxs)(n.default,{children:[(0,W.jsxs)(R.Card,{title:"Compliance-Che
     '(0,W.jsxs)(CFX.Collapse,{title:"\\ud83d\\udd0e Pr\\xfcfberichte, Dateien & Befehle",children:[(0,W.jsxs)(R.Card,{title:"Compliance-Check"')
 rep('(siehe README im ZIP)."})]})]}):null]})', '(siehe README im ZIP)."})]})]})]}):null]})')
 
+# Server-Klon: Status direkt unter dem Knopf "Komplette App auf dem Server generieren"
+rep("disabled:!!Ne||it.starting||!!it.job})})]})]}):null,'generate'===Ne&&Ze?",
+    "disabled:!!Ne||it.starting||!!it.job})}),(0,W.jsx)(CFX.CloudStatus,{ctl:it,onSettings:()=>J('settings')})]})]}):null,'generate'===Ne&&Ze?")
+
 # ---- 5. CFX-Modul einsetzen
 code = open(BUILD, encoding='utf-8').read()
 if '</script' in code.lower():
@@ -109,4 +113,15 @@ mod = ('__d(function(g,_r,_i,_a,module,exports,_d){var __M=' + json.dumps(DEPS, 
 rep('\n__r(3);', '\n' + mod + '__r(3);')
 
 open(HTML, 'w', encoding='utf-8').write(s)
+
+# ---- 6. runner.mjs (laeuft auf GitHub Actions): Klon-Ergebnisse wurden nie committet
+RUNNER = os.path.join(ROOT, 'runner.mjs')
+r = open(RUNNER, encoding='utf-8').read()
+old = 'sh("git add -A missions");'
+new = 'for (const d of ["missions", "clones"]) if (fs.existsSync(d)) sh("git add -A " + d);'
+if new not in r:
+    assert r.count(old) == 1, 'runner: git add nicht gefunden'
+    r = r.replace(old, new)
+    open(RUNNER, 'w', encoding='utf-8').write(r)
+    print('runner.mjs gepatcht')
 print('index.html gepatcht, Build', build)
